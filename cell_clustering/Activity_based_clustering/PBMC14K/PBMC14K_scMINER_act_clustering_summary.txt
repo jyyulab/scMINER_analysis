@@ -1,0 +1,2 @@
+"dataset" "method" "MICA" "k" "ARI" "file"
+"1" "PBMC14K" "scMINER" "Louvain" "7" 0.87 "Louvain/clustering_UMAP_euclidean_20_2.2.txt"

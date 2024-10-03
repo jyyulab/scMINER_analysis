@@ -1,0 +1,6 @@
+HVG1000	HVG2000	HVG3000
+Seurat	0.76	0.77	0.78
+SC3s	0.67	0.69	0.76
+Scanpy	0.69	0.75	0.82
+scVI	0.72	0.75	0.76
+scDeepCluster	0.71	0.72	0.7

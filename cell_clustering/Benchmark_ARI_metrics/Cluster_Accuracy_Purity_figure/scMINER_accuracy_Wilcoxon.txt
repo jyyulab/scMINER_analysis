@@ -1,0 +1,6 @@
+"method"	"statistic"	"p.value"
+"Seurat"	46	0.0322265625
+"SC3s"	47	0.0244140625
+"Scanpy"	43.5	0.0568291084886971
+"scVI"	54	0.001953125
+"scDeepCluster"	53	0.0029296875

@@ -1,0 +1,14 @@
+	dataset_id	RunTime	MaxMemory
+0	Yan	62 sec.	531 MB
+1	Goolam	92 sec.	518 MB
+2	Buettner	92 sec.	576 MB
+3	Pollen	399 sec.	568 MB
+4	Chung	129 sec.	617 MB
+5	Usoskin	370 sec.	616 MB
+6	Kolod	273 sec.	563 MB
+7	Klein	1946 sec.	978 MB
+8	Zeisel	241 sec.	668 MB
+9	PBMC14K	905 sec.	845 MB
+10	HMC76K	1581 sec.	28050 MB
+11	Covid97K	1328 sec.	2808 MB
+12	Covid650K	17012 sec.	15342 MB

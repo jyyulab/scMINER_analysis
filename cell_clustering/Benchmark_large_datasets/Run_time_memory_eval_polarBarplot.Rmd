@@ -1,0 +1,141 @@
+---
+title: "Run_time_memory_eval"
+author: "XY"
+date: "2024-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list=ls())
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(ggsignif)
+library(ggpubr)
+library(circlize)
+library(tidyverse)
+library(tibble)
+library(ggrepel)
+```
+
+```{r}
+packages <- c('scMINER','Seurat','SC3s','Scanpy','scVI','scDeepCluster')
+ordered_dataset_ids <-  c('Yan','Goolam','Buettner','Pollen','Chung','Usoskin','Kolod','Klein',
+                         'Zeisel','PBMC14K','HMC76K','Covid97K','Covid650K')
+```
+
+```{r}
+time_df <- data.frame(row.names = ordered_dataset_ids)
+for (method in packages){
+  metric_file <- list.files(pattern = paste0(method,'.*.txt'))
+  #print(metric_file)
+  metric_df <- read.table(metric_file,sep = '\t',header = TRUE)
+  print(metric_df)
+  #break
+  time_col <- as.numeric(gsub('\\D','',metric_df[['RunTime']]))
+  print(time_col)
+  #break
+  time_col <- time_col/60 # convert second to min
+  print(time_col)
+  #break
+  time_df[1:length(time_col),method] <- time_col
+}
+```
+```{r}
+memory_df <- data.frame(row.names = ordered_dataset_ids)
+for (method in packages){
+  metric_file <- list.files(pattern = paste0(method,'.*.txt'))
+  #print(metric_file)
+  metric_df <- read.table(metric_file,sep = '\t',header = TRUE)
+  memory_col <- as.numeric(gsub('\\D','',metric_df[['MaxMemory']]))
+  memory_col <- memory_col/1024 # convert MB to GB
+  print(memory_col)
+  #break
+  memory_df[1:length(memory_col),method] <- memory_col
+}
+```
+```{r}
+# time
+time_df$dataset <- rownames(time_df)
+time_df_long <- melt(time_df,id.vars = 'dataset')
+colnames(time_df_long) <- c('dataset','method','time')
+# memory
+memory_df$dataset <- rownames(memory_df)
+memory_df_long <- melt(memory_df,id.vars='dataset')
+colnames(memory_df_long) <- c('dataset','method','memory')
+# merge df
+time_memory_df_long <- merge(time_df_long,memory_df_long)
+```
+
+
+
+```{r}
+for (each in unique(time_memory_df_long$dataset)){
+  tmp_df_long <- time_memory_df_long[time_memory_df_long$dataset == each,]
+  # set unit of time & memory
+  if (each %in% c('HMC76K','Covid97K')){
+    tmp_df_long$time <- round(tmp_df_long$time/60,1)
+    tmp_df_long$memory <- round(tmp_df_long$memory/10,2)
+    time_unit <- 'hr'
+    mem_unit <- '10GB'
+  } else if ( each == 'Covid650K'){
+    tmp_df_long$time <- round(tmp_df_long$time/60,1)
+    tmp_df_long$memory <- round(tmp_df_long$memory/100,2)
+    time_unit <- 'hr'
+    mem_unit <- '100GB'
+  } else {
+    next
+    tmp_df_long$time <- round(tmp_df_long$time) #min
+    tmp_df_long$memory <- round(tmp_df_long$memory)
+    time_unit <- 'min'
+    mem_unit <- 'GB'
+  }
+  # common barplot
+  # p <- ggplot() + geom_bar(data=tmp_df_long,aes(x=fct_reorder(method,time),y=time,fill=memory),
+  #                          stat='identity') + theme_minimal()
+  # print(p)
+  # # polar
+  # p1 <- p + coord_polar(start=0)
+  # p1
+  # add layout
+  tmp_tb <- as_tibble(tmp_df_long)
+  tmp_tb <- tmp_tb %>%
+    mutate(id=row_number())
+  
+  p1_bis <- ggplot()+geom_bar(data=tmp_tb,aes(x=method, y=time,fill=memory),stat="identity")+
+    geom_text(data=tmp_tb, aes(x=method, y=time/2, label=sprintf("%s\n%s%s",method,time,time_unit)), position=position_stack(vjust=1.5)) +
+  # Add space in/out the circle
+  ylim(-max(tmp_tb$time)/2,max(tmp_tb$time)*1.2)+
+  coord_polar(start=0)+theme_minimal()+
+    ggtitle(sprintf(each)) + labs(fill=sprintf("max memory (%s)",mem_unit))+
+    guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5, label.position = "bottom", direction = "horizontal")) +
+  # Hide former theme element
+  theme(                          
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+  ) + scale_fill_gradient(low = "lightblue", high = "darkorange") 
+  p1_bis
+  filename = paste0(each,'_time_memory_polarBar.pdf')
+  ggsave(filename = filename,plot = p1_bis)
+  
+  # # add label
+  # tmp_tb <- tmp_tb %>%
+  #   mutate(angle=90+360*(id-0.5)/max(id))
+  # p1_bis+
+  # geom_text(
+  #   data=tmp_tb,
+  #   aes(x=id,y=time+5,label=method,angle=angle),
+  #   hjust=0     # Left align
+  # )
+  
+}
+```
+
+
+
+
