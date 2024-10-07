@@ -1,0 +1,196 @@
+---
+title: "DE_plot_SIG_regulon_size"
+output: html_document
+date: "2024-06-04"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+```
+
+
+```{r}
+save_fold = "/home/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/results"
+sample3 = "GSM6858449"
+ref_type = "NT"
+```
+
+```{r}
+inp_file = "/home/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/DE_res_GSM6858449_NT.Rdata"
+load(inp_file)
+```
+
+
+```{r}
+load("/home/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/tf_sigs_hg.RData")
+only_sig_gene = tf_sigs$geneSymbol[tf_sigs$funcType == "SIG"]
+only_tf_gene = tf_sigs$geneSymbol[tf_sigs$funcType == "TF"]
+```
+
+
+```{r}
+#logFC_th = 0.2
+#pv_th = 0.01
+#DE_genes_res = lapply(names(DE_res), function(target) {ids1 = abs(DE_res[[target]][[target]]$logFC.NT) > logFC_th;
+#  ids2 = abs(DE_res[[target]][[target]]$p.value) < pv_th;
+#  ids = ids1 & ids2;
+#  DE_genes = rownames(DE_res[[target]][[target]])[ids];
+#  return(DE_genes)
+#  })
+#names(DE_genes_res) <- names(DE_res)
+
+logFC_th = 0.25
+DE_genes_res = lapply(names(DE_res), function(target) {ids = abs(DE_res[[target]][[target]]$logFC.NT) > logFC_th;
+  DE_genes = rownames(DE_res[[target]][[target]])[ids];
+  return(DE_genes)
+  })
+names(DE_genes_res) <- names(DE_res)
+```
+
+```{r}
+regulon_size = sapply(names(DE_res), function(target) {n = length(DE_genes_res[[target]]); 
+  return(n)})
+```
+
+```{r}
+regulon_size_sig = regulon_size[names(regulon_size) %in% only_sig_gene]
+regulon_size_tf = regulon_size[names(regulon_size) %in% only_tf_gene]
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+options(digits=2)
+df = data.frame(SIG = names(regulon_size_sig), size = regulon_size_sig)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=10, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 100, y = 0.0075, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_classic(base_size = 20) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste("SIG number of targets, DE expression, N=", as.character(dim(df)[1]), sep = '')) +
+  theme(axis.title.y = element_text(angle = 90, size = 18),
+        axis.title.x.bottom = element_text(angle = 0, size = 18),
+        plot.title = element_text(size = 15))
+p
+```
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_regulon_size_DE", ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_regulon_size_DE", ".pdf"))
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r}
+net_file = "/home/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_SIG_net.Rdata"
+load(net_file)
+```
+
+
+```{r}
+net = net3_SJ_NT_SIG_edges_MI
+
+sources = unique(sort(net$source))
+
+SJ_regulon_size = sapply(sources, function(gene)  return(sum(net$source == gene)))
+```
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+df = data.frame(SIG = names(SJ_regulon_size), size = SJ_regulon_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=2, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 18, y = 0.011, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_classic(base_size = 20) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste("SIG number of targets, scMINER network, N=", as.character(dim(df)[1]), sep = '')) +
+  theme(axis.title.y = element_text(angle = 90, size = 18),
+        axis.title.x.bottom = element_text(angle = 0, size = 18),
+        plot.title = element_text(size = 15))
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_regulon_size_scMINER", ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_regulon_size_scMINER", ".pdf"))
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+
+```{r}
+CROP_sel_reg_size = regulon_size_sig
+SJ_sel_reg_size = SJ_regulon_size
+
+min_reg_size = 0
+CROP_sel_reg_size <- CROP_sel_reg_size[CROP_sel_reg_size > min_reg_size]
+SJ_sel_reg_size <- SJ_sel_reg_size[SJ_sel_reg_size > min_reg_size]
+
+overlap = intersect(names(CROP_sel_reg_size), names(SJ_sel_reg_size))
+CROP_sel_reg_size = CROP_sel_reg_size[overlap]
+SJ_sel_reg_size = SJ_sel_reg_size[overlap]
+
+
+df = data.frame(size = c(CROP_sel_reg_size, SJ_sel_reg_size),
+                type = c(rep("CROP", length(CROP_sel_reg_size)), rep("SJ", length(SJ_sel_reg_size))))
+p <- ggplot(df, aes(x = type, y = size)) + geom_boxplot() 
+
+df = data.frame(CROP = CROP_sel_reg_size,
+                SJ = SJ_sel_reg_size)
+p <- ggplot(df, aes(x = CROP, y = SJ)) + geom_point() +
+  stat_smooth(method = "lm",  formula = y ~ x, geom = "smooth") 
+
+p
+```
+
+```{r}
+CROP_sel_reg_size = regulon_size_sig
+SJ_sel_reg_size = SJ_regulon_size
+
+df = data.frame(size = c(CROP_sel_reg_size, SJ_sel_reg_size),
+                type = c(rep("CROP", length(CROP_sel_reg_size)), rep("SJ", length(SJ_sel_reg_size))))
+p <- ggplot(df, aes(x = type, y = size)) + geom_violin() 
+
+p
+```

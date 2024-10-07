@@ -1,0 +1,1748 @@
+---
+title: "regulons_analysis"
+output: html_document
+date: "2024-06-03"
+---
+
+
+```{r}
+rm(list = ls())
+
+library(pROC)
+library(PRROC)
+library(dplyr)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+
+fold = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/regulons_analysis"
+dir.create(fold)
+inp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/read_and_proccess_networks/proc_data.Rdata"
+load(inp_file)
+```
+
+
+```{r}
+#TEX_int, Effector-like T-cells, Teff-like
+#TEX_prog, Exhaustion progenitor T cells, Tpex
+#TEX_term, Terminal exhausted T cells, Tex
+```
+
+```{r}
+comp_auprc5_min_n = function(k, tfs, dft, df1, df2, df3, df4, df5) {
+  tf = tfs[k]
+  dft_tf = dft[dft$source == tf,]
+  df1_tf = df1[df1$source == tf,]
+  df2_tf = df2[df2$source == tf,]
+  df3_tf = df3[df3$source == tf,]
+  df4_tf = df4[df4$source == tf,]
+  df5_tf = df5[df5$source == tf,]
+  n = min(c(dim(df1_tf)[1], dim(df2_tf)[1], dim(df3_tf)[1], dim(df4_tf)[1], dim(df5_tf)[1]))
+  if (sum(df1_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr1 = pr.curve(scores.class0 = n:1, weights.class0 = df1_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc1 = pr1$auc.integral
+  } else {
+    auprc1 = NA
+  }
+  if (sum(df2_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr2 = pr.curve(scores.class0 = n:1, weights.class0 = df2_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc2 = pr2$auc.integral
+  } else {
+    auprc2 = NA
+  }
+  if (sum(df3_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr3 = pr.curve(scores.class0 = n:1, weights.class0 = df3_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc3 = pr3$auc.integral
+  } else {
+    auprc3 = NA
+  }
+  if (sum(df4_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr4 = pr.curve(scores.class0 = n:1, weights.class0 = df4_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc4 = pr4$auc.integral
+  } else {
+    auprc4 = NA
+  }
+  if (sum(df5_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr5 = pr.curve(scores.class0 = n:1, weights.class0 = df5_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc5 = pr5$auc.integral
+  } else {
+    auprc5 = NA
+  }
+  return(c(auprc1, auprc2, auprc3, auprc4, auprc5))
+}
+
+comp_auprc5_all = function(k, tfs, dft, df1, df2, df3, df4, df5) {
+  tf = tfs[k]
+  dft_tf = dft[dft$source == tf,]
+  df1_tf = df1[df1$source == tf,]
+  df2_tf = df2[df2$source == tf,]
+  df3_tf = df3[df3$source == tf,]
+  df4_tf = df4[df4$source == tf,]
+  df5_tf = df5[df5$source == tf,]
+  if (sum(df1_tf$target %in% dft_tf$target) > 0) {
+    pr1 = pr.curve(scores.class0 = length(df1_tf$target):1, weights.class0 = df1_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc1 = pr1$auc.integral
+  } else {
+    auprc1 = NA
+  }
+  if (sum(df2_tf$target %in% dft_tf$target) > 0) {
+    pr2 = pr.curve(scores.class0 = length(df2_tf$target):1, weights.class0 = df2_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc2 = pr2$auc.integral
+  } else {
+    auprc2 = NA
+  }
+  if (sum(df3_tf$target %in% dft_tf$target) > 0) {
+    pr3 = pr.curve(scores.class0 = length(df3_tf$target):1, weights.class0 = df3_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc3 = pr3$auc.integral
+  } else {
+    auprc3 = NA
+  }
+  if (sum(df4_tf$target %in% dft_tf$target) > 0) {
+    pr4 = pr.curve(scores.class0 = length(df4_tf$target):1, weights.class0 = df4_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc4 = pr4$auc.integral
+  } else {
+    auprc4 = NA
+  }
+  if (sum(df5_tf$target %in% dft_tf$target) > 0) {
+    pr5 = pr.curve(scores.class0 = length(df5_tf$target):1, weights.class0 = df5_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc5 = pr5$auc.integral
+  } else {
+    auprc5 = NA
+  }
+  return(c(auprc1, auprc2, auprc3, auprc4, auprc5))
+}
+
+comp_auprcr4_min_n = function(k, tfs, dft, df1, df2, df3, df4, df5) {
+  tf = tfs[k]
+  dft_tf = dft[dft$source == tf,]
+  df1_tf = df1[df1$source == tf,]
+  df2_tf = df2[df2$source == tf,]
+  df3_tf = df3[df3$source == tf,]
+  df4_tf = df4[df4$source == tf,]
+  df5_tf = df5[df5$source == tf,]
+  n = min(c(dim(df1_tf)[1], dim(df2_tf)[1], dim(df3_tf)[1], dim(df4_tf)[1], dim(df5_tf)[1]))
+  if (sum(df1_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr1 = pr.curve(scores.class0 = n:1, weights.class0 = df1_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc1 = pr1$auc.integral
+  } else {
+    auprc1 = NA
+  }
+  if (sum(df2_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr2 = pr.curve(scores.class0 = n:1, weights.class0 = df2_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc2 = pr2$auc.integral
+  } else {
+    auprc2 = NA
+  }
+  if (sum(df3_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr3 = pr.curve(scores.class0 = n:1, weights.class0 = df3_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc3 = pr3$auc.integral
+  } else {
+    auprc3 = NA
+  }
+  if (sum(df4_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr4 = pr.curve(scores.class0 = n:1, weights.class0 = df4_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc4 = pr4$auc.integral
+  } else {
+    auprc4 = NA
+  }
+  if (sum(df5_tf$target[1:n] %in% dft_tf$target) > 0) {
+    pr5 = pr.curve(scores.class0 = n:1, weights.class0 = df5_tf$target[1:n] %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc5 = pr5$auc.integral
+  } else {
+    auprc5 = NA
+  }
+  return(c(auprc1/auprc5, auprc2/auprc5, auprc3/auprc5, auprc4/auprc5))
+}
+
+comp_auprcr4_all = function(k, tfs, dft, df1, df2, df3, df4, df5) {
+  tf = tfs[k]
+  dft_tf = dft[dft$source == tf,]
+  df1_tf = df1[df1$source == tf,]
+  df2_tf = df2[df2$source == tf,]
+  df3_tf = df3[df3$source == tf,]
+  df4_tf = df4[df4$source == tf,]
+  df5_tf = df5[df5$source == tf,]
+  if (sum(df1_tf$target %in% dft_tf$target) > 0) {
+    pr1 = pr.curve(scores.class0 = length(df1_tf$target):1, weights.class0 = df1_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc1 = pr1$auc.integral
+  } else {
+    auprc1 = NA
+  }
+  if (sum(df2_tf$target %in% dft_tf$target) > 0) {
+    pr2 = pr.curve(scores.class0 = length(df2_tf$target):1, weights.class0 = df2_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc2 = pr2$auc.integral
+  } else {
+    auprc2 = NA
+  }
+  if (sum(df3_tf$target %in% dft_tf$target) > 0) {
+    pr3 = pr.curve(scores.class0 = length(df3_tf$target):1, weights.class0 = df3_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc3 = pr3$auc.integral
+  } else {
+    auprc3 = NA
+  }
+  if (sum(df4_tf$target %in% dft_tf$target) > 0) {
+    pr4 = pr.curve(scores.class0 = length(df4_tf$target):1, weights.class0 = df4_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc4 = pr4$auc.integral
+  } else {
+    auprc4 = NA
+  }
+  if (sum(df5_tf$target %in% dft_tf$target) > 0) {
+    pr5 = pr.curve(scores.class0 = length(df5_tf$target):1, weights.class0 = df5_tf$target %in% dft_tf$target, sorted = TRUE, curve = FALSE)
+    auprc5 = pr5$auc.integral
+  } else {
+    auprc5 = NA
+  }
+  return(c(auprc1/auprc5, auprc2/auprc5, auprc3/auprc5, auprc4/auprc5))
+}
+
+comp_auroc5_min_n = function(k, tfs, dft, df1, df2, df3, df4, df5) {
+  tf = tfs[k]
+  dft_tf = dft[dft$source == tf,]
+  df1_tf = df1[df1$source == tf,]
+  df2_tf = df2[df2$source == tf,]
+  df3_tf = df3[df3$source == tf,]
+  df4_tf = df4[df4$source == tf,]
+  df5_tf = df5[df5$source == tf,]
+  n = min(c(dim(df1_tf)[1], dim(df2_tf)[1], dim(df3_tf)[1], dim(df4_tf)[1], dim(df5_tf)[1]))
+  
+  if (sum(df1_tf$target[1:n] %in% dft_tf$target) > 0) {
+    auc1 = as.numeric(auc(roc(df1_tf$target[1:n] %in% dft_tf$target, 1:n, direction = ">")))
+  } else {
+    auc1 = NA
+  }
+  if (sum(df2_tf$target[1:n] %in% dft_tf$target) > 0) {
+    auc2 = as.numeric(auc(roc(df2_tf$target[1:n] %in% dft_tf$target, 1:n, direction = ">")))
+  } else {
+    auc2 = NA
+  }
+  if (sum(df3_tf$target[1:n] %in% dft_tf$target) > 0) {
+    auc3 = as.numeric(auc(roc(df3_tf$target[1:n] %in% dft_tf$target, 1:n, direction = ">")))
+  } else {
+    auc3 = NA
+  }
+  if (sum(df4_tf$target[1:n] %in% dft_tf$target) > 0) {
+    auc4 = as.numeric(auc(roc(df4_tf$target[1:n] %in% dft_tf$target, 1:n, direction = ">")))
+  } else {
+    auc4 = NA
+  }
+  if (sum(df5_tf$target[1:n] %in% dft_tf$target) > 0) {
+    auc5 = as.numeric(auc(roc(df5_tf$target[1:n] %in% dft_tf$target, 1:n, direction = ">")))
+  } else {
+    auc5 = NA
+  }
+  return(c(auc1, auc2, auc3, auc4, auc5))
+}
+
+comp_auroc5_all = function(k, tfs, dft, df1, df2, df3, df4, df5) {
+  tf = tfs[k]
+  dft_tf = dft[dft$source == tf,]
+  df1_tf = df1[df1$source == tf,]
+  df2_tf = df2[df2$source == tf,]
+  df3_tf = df3[df3$source == tf,]
+  df4_tf = df4[df4$source == tf,]
+  df5_tf = df5[df5$source == tf,]
+  if (sum(df1_tf$target %in% dft_tf$target) > 0) {
+    auc1 = as.numeric(auc(roc(df1_tf$target %in% dft_tf$target, 1:length(df1_tf$target), direction = ">")))
+  } else {
+    auc1 = NA
+  }
+  if (sum(df2_tf$target %in% dft_tf$target) > 0) {
+    auc2 = as.numeric(auc(roc(df2_tf$target %in% dft_tf$target, 1:length(df2_tf$target), direction = ">")))
+  } else {
+    auc2 = NA
+  }
+  if (sum(df3_tf$target %in% dft_tf$target) > 0) {
+    auc3 = as.numeric(auc(roc(df3_tf$target %in% dft_tf$target, 1:length(df3_tf$target), direction = ">")))
+  } else {
+    auc3 = NA
+  }
+  if (sum(df4_tf$target %in% dft_tf$target) > 0) {
+    auc4 = as.numeric(auc(roc(df4_tf$target %in% dft_tf$target, 1:length(df4_tf$target), direction = ">")))
+  } else {
+    auc4 = NA
+  }
+  if (sum(df5_tf$target %in% dft_tf$target) > 0) {
+    auc5 = as.numeric(auc(roc(df5_tf$target %in% dft_tf$target, 1:length(df5_tf$target), direction = ">")))
+  } else {
+    auc5 = NA
+  }  
+  return(c(auc1, auc2, auc3, auc4, auc5))
+}
+
+```
+
+
+```{r, message=FALSE}
+mat <- sapply(seq_len(length(TEX_int$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_min_n(k, TEX_int$genes$TFs_sel, TEX_int$net$ATAC$edges_sel, TEX_int$net$scMINER$edges_sel, TEX_int$net$GENIE3$edges_sel, TEX_int$net$GRNBoost2$edges_sel, TEX_int$net$PIDC$edges_sel, TEX_int$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_int_AUPRC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_int$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_int$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_all(k, TEX_int$genes$TFs_sel, TEX_int$net$ATAC$edges_sel, TEX_int$net$scMINER$edges_sel, TEX_int$net$GENIE3$edges_sel, TEX_int$net$GRNBoost2$edges_sel, TEX_int$net$PIDC$edges_sel, TEX_int$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_int_AUPRC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_int$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_int$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_min_n(k, TEX_int$genes$TFs_sel, TEX_int$net$ATAC$edges_sel, TEX_int$net$scMINER$edges_sel, TEX_int$net$GENIE3$edges_sel, TEX_int$net$GRNBoost2$edges_sel, TEX_int$net$PIDC$edges_sel, TEX_int$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_int_AUPRCR_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = TEX_int$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_int$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_all(k, TEX_int$genes$TFs_sel, TEX_int$net$ATAC$edges_sel, TEX_int$net$scMINER$edges_sel, TEX_int$net$GENIE3$edges_sel, TEX_int$net$GRNBoost2$edges_sel, TEX_int$net$PIDC$edges_sel, TEX_int$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_int_AUPRCR_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = TEX_int$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_int$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_min_n(k, TEX_int$genes$TFs_sel, TEX_int$net$ATAC$edges_sel, TEX_int$net$scMINER$edges_sel, TEX_int$net$GENIE3$edges_sel, TEX_int$net$GRNBoost2$edges_sel, TEX_int$net$PIDC$edges_sel, TEX_int$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_int_AUROC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_int$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_int$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_all(k, TEX_int$genes$TFs_sel, TEX_int$net$ATAC$edges_sel, TEX_int$net$scMINER$edges_sel, TEX_int$net$GENIE3$edges_sel, TEX_int$net$GRNBoost2$edges_sel, TEX_int$net$PIDC$edges_sel, TEX_int$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_int_AUROC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_int$genes$TFs_sel[ids])
+
+
+
+mat <- sapply(seq_len(length(TEX_prog$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_min_n(k, TEX_prog$genes$TFs_sel, TEX_prog$net$ATAC$edges_sel, TEX_prog$net$scMINER$edges_sel, TEX_prog$net$GENIE3$edges_sel, TEX_prog$net$GRNBoost2$edges_sel, TEX_prog$net$PIDC$edges_sel, TEX_prog$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_prog_AUPRC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_prog$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_prog$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_all(k, TEX_prog$genes$TFs_sel, TEX_prog$net$ATAC$edges_sel, TEX_prog$net$scMINER$edges_sel, TEX_prog$net$GENIE3$edges_sel, TEX_prog$net$GRNBoost2$edges_sel, TEX_prog$net$PIDC$edges_sel, TEX_prog$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_prog_AUPRC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_prog$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_prog$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_min_n(k, TEX_prog$genes$TFs_sel, TEX_prog$net$ATAC$edges_sel, TEX_prog$net$scMINER$edges_sel, TEX_prog$net$GENIE3$edges_sel, TEX_prog$net$GRNBoost2$edges_sel, TEX_prog$net$PIDC$edges_sel, TEX_prog$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_prog_AUPRCR_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = TEX_prog$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_prog$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_all(k, TEX_prog$genes$TFs_sel, TEX_prog$net$ATAC$edges_sel, TEX_prog$net$scMINER$edges_sel, TEX_prog$net$GENIE3$edges_sel, TEX_prog$net$GRNBoost2$edges_sel, TEX_prog$net$PIDC$edges_sel, TEX_prog$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_prog_AUPRCR_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = TEX_prog$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_prog$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_min_n(k, TEX_prog$genes$TFs_sel, TEX_prog$net$ATAC$edges_sel, TEX_prog$net$scMINER$edges_sel, TEX_prog$net$GENIE3$edges_sel, TEX_prog$net$GRNBoost2$edges_sel, TEX_prog$net$PIDC$edges_sel, TEX_prog$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_prog_AUROC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_prog$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_prog$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_all(k, TEX_prog$genes$TFs_sel, TEX_prog$net$ATAC$edges_sel, TEX_prog$net$scMINER$edges_sel, TEX_prog$net$GENIE3$edges_sel, TEX_prog$net$GRNBoost2$edges_sel, TEX_prog$net$PIDC$edges_sel, TEX_prog$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_prog_AUROC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_prog$genes$TFs_sel[ids])
+
+
+
+
+mat <- sapply(seq_len(length(TEX_term$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_min_n(k, TEX_term$genes$TFs_sel, TEX_term$net$ATAC$edges_sel, TEX_term$net$scMINER$edges_sel, TEX_term$net$GENIE3$edges_sel, TEX_term$net$GRNBoost2$edges_sel, TEX_term$net$PIDC$edges_sel, TEX_term$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_term_AUPRC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_term$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_term$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_all(k, TEX_term$genes$TFs_sel, TEX_term$net$ATAC$edges_sel, TEX_term$net$scMINER$edges_sel, TEX_term$net$GENIE3$edges_sel, TEX_term$net$GRNBoost2$edges_sel, TEX_term$net$PIDC$edges_sel, TEX_term$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_term_AUPRC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_term$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_term$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_min_n(k, TEX_term$genes$TFs_sel, TEX_term$net$ATAC$edges_sel, TEX_term$net$scMINER$edges_sel, TEX_term$net$GENIE3$edges_sel, TEX_term$net$GRNBoost2$edges_sel, TEX_term$net$PIDC$edges_sel, TEX_term$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_term_AUPRCR_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = TEX_term$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_term$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_all(k, TEX_term$genes$TFs_sel, TEX_term$net$ATAC$edges_sel, TEX_term$net$scMINER$edges_sel, TEX_term$net$GENIE3$edges_sel, TEX_term$net$GRNBoost2$edges_sel, TEX_term$net$PIDC$edges_sel, TEX_term$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_term_AUPRCR_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = TEX_term$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_term$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_min_n(k, TEX_term$genes$TFs_sel, TEX_term$net$ATAC$edges_sel, TEX_term$net$scMINER$edges_sel, TEX_term$net$GENIE3$edges_sel, TEX_term$net$GRNBoost2$edges_sel, TEX_term$net$PIDC$edges_sel, TEX_term$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_term_AUROC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_term$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(TEX_term$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_all(k, TEX_term$genes$TFs_sel, TEX_term$net$ATAC$edges_sel, TEX_term$net$scMINER$edges_sel, TEX_term$net$GENIE3$edges_sel, TEX_term$net$GRNBoost2$edges_sel, TEX_term$net$PIDC$edges_sel, TEX_term$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+TEX_term_AUROC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = TEX_term$genes$TFs_sel[ids])
+
+
+mat <- sapply(seq_len(length(Tregs_Spleen$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_min_n(k, Tregs_Spleen$genes$TFs_sel, Tregs_Spleen$net$ATAC$edges_sel, Tregs_Spleen$net$scMINER$edges_sel, Tregs_Spleen$net$GENIE3$edges_sel, Tregs_Spleen$net$GRNBoost2$edges_sel, Tregs_Spleen$net$PIDC$edges_sel, Tregs_Spleen$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_Spleen_AUPRC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_Spleen$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_Spleen$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_all(k, Tregs_Spleen$genes$TFs_sel, Tregs_Spleen$net$ATAC$edges_sel, Tregs_Spleen$net$scMINER$edges_sel, Tregs_Spleen$net$GENIE3$edges_sel, Tregs_Spleen$net$GRNBoost2$edges_sel, Tregs_Spleen$net$PIDC$edges_sel, Tregs_Spleen$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_Spleen_AUPRC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_Spleen$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_Spleen$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_min_n(k, Tregs_Spleen$genes$TFs_sel, Tregs_Spleen$net$ATAC$edges_sel, Tregs_Spleen$net$scMINER$edges_sel, Tregs_Spleen$net$GENIE3$edges_sel, Tregs_Spleen$net$GRNBoost2$edges_sel, Tregs_Spleen$net$PIDC$edges_sel, Tregs_Spleen$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_Spleen_AUPRCR_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = Tregs_Spleen$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_Spleen$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_all(k, Tregs_Spleen$genes$TFs_sel, Tregs_Spleen$net$ATAC$edges_sel, Tregs_Spleen$net$scMINER$edges_sel, Tregs_Spleen$net$GENIE3$edges_sel, Tregs_Spleen$net$GRNBoost2$edges_sel, Tregs_Spleen$net$PIDC$edges_sel, Tregs_Spleen$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_Spleen_AUPRCR_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = Tregs_Spleen$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_Spleen$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_min_n(k, Tregs_Spleen$genes$TFs_sel, Tregs_Spleen$net$ATAC$edges_sel, Tregs_Spleen$net$scMINER$edges_sel, Tregs_Spleen$net$GENIE3$edges_sel, Tregs_Spleen$net$GRNBoost2$edges_sel, Tregs_Spleen$net$PIDC$edges_sel, Tregs_Spleen$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_Spleen_AUROC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_Spleen$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_Spleen$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_all(k, Tregs_Spleen$genes$TFs_sel, Tregs_Spleen$net$ATAC$edges_sel, Tregs_Spleen$net$scMINER$edges_sel, Tregs_Spleen$net$GENIE3$edges_sel, Tregs_Spleen$net$GRNBoost2$edges_sel, Tregs_Spleen$net$PIDC$edges_sel, Tregs_Spleen$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_Spleen_AUROC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_Spleen$genes$TFs_sel[ids])
+
+
+
+mat <- sapply(seq_len(length(Tregs_VAT$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_min_n(k, Tregs_VAT$genes$TFs_sel, Tregs_VAT$net$ATAC$edges_sel, Tregs_VAT$net$scMINER$edges_sel, Tregs_VAT$net$GENIE3$edges_sel, Tregs_VAT$net$GRNBoost2$edges_sel, Tregs_VAT$net$PIDC$edges_sel, Tregs_VAT$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_VAT_AUPRC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_VAT$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_VAT$genes$TFs_sel)), function(k) {return(
+  comp_auprc5_all(k, Tregs_VAT$genes$TFs_sel, Tregs_VAT$net$ATAC$edges_sel, Tregs_VAT$net$scMINER$edges_sel, Tregs_VAT$net$GENIE3$edges_sel, Tregs_VAT$net$GRNBoost2$edges_sel, Tregs_VAT$net$PIDC$edges_sel, Tregs_VAT$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_VAT_AUPRC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_VAT$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_VAT$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_min_n(k, Tregs_VAT$genes$TFs_sel, Tregs_VAT$net$ATAC$edges_sel, Tregs_VAT$net$scMINER$edges_sel, Tregs_VAT$net$GENIE3$edges_sel, Tregs_VAT$net$GRNBoost2$edges_sel, Tregs_VAT$net$PIDC$edges_sel, Tregs_VAT$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_VAT_AUPRCR_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = Tregs_VAT$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_VAT$genes$TFs_sel)), function(k) {return(
+  comp_auprcr4_all(k, Tregs_VAT$genes$TFs_sel, Tregs_VAT$net$ATAC$edges_sel, Tregs_VAT$net$scMINER$edges_sel, Tregs_VAT$net$GENIE3$edges_sel, Tregs_VAT$net$GRNBoost2$edges_sel, Tregs_VAT$net$PIDC$edges_sel, Tregs_VAT$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_VAT_AUPRCR_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'TF' = Tregs_VAT$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_VAT$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_min_n(k, Tregs_VAT$genes$TFs_sel, Tregs_VAT$net$ATAC$edges_sel, Tregs_VAT$net$scMINER$edges_sel, Tregs_VAT$net$GENIE3$edges_sel, Tregs_VAT$net$GRNBoost2$edges_sel, Tregs_VAT$net$PIDC$edges_sel, Tregs_VAT$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_VAT_AUROC_per_tf_TF_min <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_VAT$genes$TFs_sel[ids])
+
+mat <- sapply(seq_len(length(Tregs_VAT$genes$TFs_sel)), function(k) {return(
+  comp_auroc5_all(k, Tregs_VAT$genes$TFs_sel, Tregs_VAT$net$ATAC$edges_sel, Tregs_VAT$net$scMINER$edges_sel, Tregs_VAT$net$GENIE3$edges_sel, Tregs_VAT$net$GRNBoost2$edges_sel, Tregs_VAT$net$PIDC$edges_sel, Tregs_VAT$net$Rand$edges_sel))})
+ids <- !is.na(colSums(mat))
+mat <- mat[,ids]
+Tregs_VAT_AUROC_per_tf_TF_all <- data.frame('scMINER' = mat[1,], 'GENIE3' = mat[2,], 'GRNBoost2' = mat[3,], 'PIDC' = mat[4,], 'Rand' = mat[5,], 'TF' = Tregs_VAT$genes$TFs_sel[ids])
+```
+
+
+```{r}
+options(scipen = 0)
+options(digits = 2)
+```
+
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_int_AUPRC_per_tf_TF_min
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Teff-like, TF regulons, top edges') + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_AUPRC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_AUPRC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_int_AUPRC_per_tf_TF_all
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Teff-like, TF regulons, all edges') + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_AUPRC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_AUPRC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_int_AUPRCR_per_tf_TF_min
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Teff-like, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_AUPRCR_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_AUPRCR_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_int_AUPRCR_per_tf_TF_all
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Teff-like, TF regulons, all edges') + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_AUPRCR_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_AUPRCR_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_prog_AUPRC_per_tf_TF_min
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tpex, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_AUPRC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_AUPRC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_prog_AUPRC_per_tf_TF_all
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tpex, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_AUPRC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_AUPRC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_prog_AUPRCR_per_tf_TF_min
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tpex, TF regulons, top edges') + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_AUPRCR_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_AUPRCR_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_prog_AUPRCR_per_tf_TF_all
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tpex, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_AUPRCR_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_AUPRCR_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_term_AUPRC_per_tf_TF_min
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tex, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_AUPRC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_AUPRC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_term_AUPRC_per_tf_TF_all
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tex, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_AUPRC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_AUPRC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_term_AUPRCR_per_tf_TF_min
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tex, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_AUPRCR_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_AUPRCR_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = TEX_term_AUPRCR_per_tf_TF_all
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tex, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_AUPRCR_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_AUPRCR_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_Spleen_AUPRC_per_tf_TF_min
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tregs Spleen, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15),
+        plot.title = element_text(size = 18))
+
+p
+```
+
+
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_AUPRC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_AUPRC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_Spleen_AUPRC_per_tf_TF_all
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tregs Spleen, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15), 
+        plot.title = element_text(size = 18))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_AUPRC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_AUPRC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_Spleen_AUPRCR_per_tf_TF_min
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tregs Spleen, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15), plot.title = element_text(size = 18))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_AUPRCR_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_AUPRCR_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_Spleen_AUPRCR_per_tf_TF_all
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tregs Spleen, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15), , plot.title = element_text(size = 18))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_AUPRCR_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_AUPRCR_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_VAT_AUPRC_per_tf_TF_min
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tregs VAT, TF regulons, top edges') + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15),
+        plot.title = element_text(size = 18))
+
+p
+```
+
+
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_AUPRC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_AUPRC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_VAT_AUPRC_per_tf_TF_all
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Rand"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[1:4,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  xlab("") + ylab("AUPRC") + ggtitle('Tregs VAT, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_AUPRC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_AUPRC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_VAT_AUPRCR_per_tf_TF_min
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tregs VAT, TF regulons, top edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_AUPRCR_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_AUPRCR_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+data = Tregs_VAT_AUPRCR_per_tf_TF_all
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") + 
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(aes(fill = ), name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("AUPRC ratio") + ggtitle('Tregs VAT, TF regulons, all edges') +
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_AUPRCR_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_AUPRCR_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(TEX_int_AUROC_per_tf_TF_min)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Teff-like, TF regulons, top edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_AUROC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_AUROC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(TEX_int_AUROC_per_tf_TF_all)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Teff-like, TF regulons, all edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_AUROC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_AUROC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(TEX_prog_AUROC_per_tf_TF_min)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tpex, TF regulons, top edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_AUROC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_AUROC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(TEX_prog_AUROC_per_tf_TF_all)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tpex, TF regulons, all edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_AUROC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_AUROC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(TEX_term_AUROC_per_tf_TF_min)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tex, TF regulons, top edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_AUROC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_AUROC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(TEX_term_AUROC_per_tf_TF_all)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tex, TF regulons, all edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_AUROC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_AUROC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(Tregs_Spleen_AUROC_per_tf_TF_min)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15),
+        plot.title = element_text(size = 18)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tregs Spleen, TF regulons, top edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_AUROC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_AUROC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(Tregs_Spleen_AUROC_per_tf_TF_all)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15),
+        plot.title = element_text(size = 18)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tregs Spleen, TF regulons, all edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_AUROC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_AUROC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(Tregs_VAT_AUROC_per_tf_TF_min)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tregs VAT, TF regulons, top edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_AUROC_top_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_AUROC_top_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=6}
+df = melt(Tregs_VAT_AUROC_per_tf_TF_all)
+comparisons <- list( c("scMINER", "GENIE3"), c("scMINER", "GRNBoost2"), c("scMINER", "PIDC"), c("scMINER", "Rand") )
+
+p <- ggplot(df, aes(x = variable, y = value, fill = variable)) +
+  geom_violin() +
+  geom_boxplot(width=0.1, color="black") +
+  stat_compare_means(comparisons = comparisons, 
+                     label = "p.signif",
+                     symnum.args = list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), 
+                                        symbols = c("****", "***", "**", "*", "ns")),
+                     method = "wilcox.test", 
+                     paired = TRUE, 
+                     step.increase = 0.1, 
+                     tip.length = 0.01) + 
+  scale_fill_manual(name = 'Models',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Rand" = "gray")) + 
+  theme_classic(base_size = 16) + 
+  scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=15)) +
+  xlab("") + ylab("AUROC") + ggtitle("Tregs VAT, TF regulons, all edges")
+p 
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_AUROC_all_edges.png")
+png(save_file, height=6, width=5, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_AUROC_all_edges.pdf")
+pdf(save_file, height=6, width=5)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

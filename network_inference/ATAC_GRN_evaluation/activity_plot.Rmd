@@ -1,0 +1,390 @@
+---
+title: "activity_plot"
+output: html_document
+date: "2024-07-29"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+```{r}
+set.seed(100) 
+```
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(DropletUtils)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(EnsDb.Mmusculus.v79)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pals)
+library(SingleR)
+library(pheatmap)
+library(igraph)
+library(ggraph)
+library(graphlayouts)
+library(ggforce)
+library(scDblFinder)
+library(anndata)
+library(reticulate)
+```
+
+
+```{r}
+inp_fold = "/Volumes/shladysh/scMINER/22_GRNeval/GRN_evaluation_upd/activity_analysis"
+save_fold = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/activity_heatmaps"
+dir.create(save_fold)
+```
+
+
+```{r}
+load(file.path(inp_fold, "TEX_int_activity.Rdata"))
+
+ac = ac_scMINER
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_int_ac_scMINER = ac
+
+ac = ac_GRNB2
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_int_ac_GRNB2 = ac
+
+ac = ac_GN3
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_int_ac_GN3 = ac
+
+ac = ac_PIDC
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_int_ac_PIDC = ac
+```
+
+
+```{r}
+load(file.path(inp_fold, "TEX_prog_activity.Rdata"))
+
+ac = ac_scMINER
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_prog_ac_scMINER = ac
+
+ac = ac_GRNB2
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_prog_ac_GRNB2 = ac
+
+ac = ac_GN3
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_prog_ac_GN3 = ac
+
+ac = ac_PIDC
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_prog_ac_PIDC = ac
+```
+
+
+```{r}
+load(file.path(inp_fold, "TEX_term_activity.Rdata"))
+
+ac = ac_scMINER
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_term_ac_scMINER = ac
+
+ac = ac_GRNB2
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_term_ac_GRNB2 = ac
+
+ac = ac_GN3
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_term_ac_GN3 = ac
+
+ac = ac_PIDC
+#ac = (ac - apply(ac, 2, mean, na.rm=TRUE))/apply(ac, 2, sd, na.rm=TRUE)
+TEX_term_ac_PIDC = ac
+```
+
+
+```{r}
+mk_tf_list = c("Tcf7", "Id3", "Rel", "Foxo1", "Nfkb1", "Lef1", "Klf2", "Klf3", "Runx1", "Tbx21", "Rora", "E2f2", "Bhlhe40", "Irf1", "Batf", "Tox", "Nfatc1", "Prdm1")
+```
+
+
+
+```{r}
+TEX_ac_scMINER = merge(TEX_prog_ac_scMINER, TEX_int_ac_scMINER, by = 'row.names', all = TRUE)
+rownames(TEX_ac_scMINER) <- TEX_ac_scMINER$Row.names
+TEX_ac_scMINER <- TEX_ac_scMINER[-1]
+
+TEX_ac_scMINER = merge(TEX_ac_scMINER, TEX_term_ac_scMINER, by = 'row.names', all = TRUE)
+rownames(TEX_ac_scMINER) <- TEX_ac_scMINER$Row.names
+TEX_ac_scMINER <- TEX_ac_scMINER[-1]
+
+cell_types = c("Tpex", "Teff-like", "Tex")
+cell_label_ord = c(rep("Tpex", dim(TEX_prog_ac_scMINER)[2]), rep("Teff-like", dim(TEX_int_ac_scMINER)[2]), rep("Tex", dim(TEX_term_ac_scMINER)[2]))
+```
+
+
+```{r}
+ac_all = TEX_ac_scMINER
+for (i in 1:dim(ac_all)[2]){
+  ac_all[is.na(ac_all[,i]),i] = min(ac_all[!is.na(ac_all[,i]),i])
+}
+row_mean <- rowMeans(ac_all)
+row_stdev <- apply(ac_all, 1, sd, na.rm=TRUE)
+ac_all_row_norm <- (ac_all - row_mean)/row_stdev
+```
+
+
+```{r, fig.width=6, fig.height=6}
+ids <- match(mk_tf_list, rownames(ac_all))
+exp <- as.matrix(ac_all_row_norm[ids, ])
+rownames(exp) <- mk_tf_list
+df <- data.frame("cell_type" = factor(cell_label_ord, levels = cell_types))
+n <- length(cell_types)
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- cell_types
+min_col_th = -2
+max_col_th = 2
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type"),
+                                                                  labels = c("Tpex", "Teff-like", "Tex")))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity scMINER"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_scMINER.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_scMINER.pdf")
+pdf(save_file, height=6, width=6)
+print(hmp)
+dev.off()
+```
+
+
+
+```{r}
+TEX_ac_GRNB2 = merge(TEX_prog_ac_GRNB2, TEX_int_ac_GRNB2, by = 'row.names', all = TRUE)
+rownames(TEX_ac_GRNB2) <- TEX_ac_GRNB2$Row.names
+TEX_ac_GRNB2 <- TEX_ac_GRNB2[-1]
+
+TEX_ac_GRNB2 = merge(TEX_ac_GRNB2, TEX_term_ac_GRNB2, by = 'row.names', all = TRUE)
+rownames(TEX_ac_GRNB2) <- TEX_ac_GRNB2$Row.names
+TEX_ac_GRNB2 <- TEX_ac_GRNB2[-1]
+
+cell_types = c("Tpex", "Teff-like", "Tex")
+cell_label_ord = c(rep("Tpex", dim(TEX_prog_ac_GRNB2)[2]), rep("Teff-like", dim(TEX_int_ac_GRNB2)[2]), rep("Tex", dim(TEX_term_ac_GRNB2)[2]))
+```
+
+
+```{r}
+ac_all = TEX_ac_GRNB2
+for (i in 1:dim(ac_all)[2]){
+  ac_all[is.na(ac_all[,i]),i] = min(ac_all[!is.na(ac_all[,i]),i])
+}
+row_mean <- rowMeans(ac_all)
+row_stdev <- apply(ac_all, 1, sd, na.rm=TRUE)
+ac_all_row_norm <- (ac_all - row_mean)/row_stdev
+```
+
+
+```{r, fig.width=6, fig.height=6}
+ids <- match(mk_tf_list, rownames(ac_all))
+exp <- as.matrix(ac_all_row_norm[ids, ])
+rownames(exp) <- mk_tf_list
+df <- data.frame("cell_type" = factor(cell_label_ord, levels = cell_types))
+n <- length(cell_types)
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- cell_types
+min_col_th = -2
+max_col_th = 2
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type"),
+                                                                  labels = c("Tpex", "Teff-like", "Tex")))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity GRNBoost2"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_GRNB2.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_GRNB2.pdf")
+pdf(save_file, height=6, width=6)
+print(hmp)
+dev.off()
+```
+
+
+
+
+
+```{r}
+TEX_ac_GN3 = merge(TEX_prog_ac_GN3, TEX_int_ac_GN3, by = 'row.names', all = TRUE)
+rownames(TEX_ac_GN3) <- TEX_ac_GN3$Row.names
+TEX_ac_GN3 <- TEX_ac_GN3[-1]
+
+TEX_ac_GN3 = merge(TEX_ac_GN3, TEX_term_ac_GN3, by = 'row.names', all = TRUE)
+rownames(TEX_ac_GN3) <- TEX_ac_GN3$Row.names
+TEX_ac_GN3 <- TEX_ac_GN3[-1]
+
+cell_types = c("Tpex", "Teff-like", "Tex")
+cell_label_ord = c(rep("Tpex", dim(TEX_prog_ac_GN3)[2]), rep("Teff-like", dim(TEX_int_ac_GN3)[2]), rep("Tex", dim(TEX_term_ac_GN3)[2]))
+```
+
+
+```{r}
+ac_all = TEX_ac_GN3
+for (i in 1:dim(ac_all)[2]){
+  ac_all[is.na(ac_all[,i]),i] = min(ac_all[!is.na(ac_all[,i]),i])
+}
+row_mean <- rowMeans(ac_all)
+row_stdev <- apply(ac_all, 1, sd, na.rm=TRUE)
+ac_all_row_norm <- (ac_all - row_mean)/row_stdev
+```
+
+
+```{r, fig.width=6, fig.height=6}
+ids <- match(mk_tf_list, rownames(ac_all))
+exp <- as.matrix(ac_all_row_norm[ids, ])
+rownames(exp) <- mk_tf_list
+df <- data.frame("cell_type" = factor(cell_label_ord, levels = cell_types))
+n <- length(cell_types)
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- cell_types
+min_col_th = -2
+max_col_th = 2
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type"),
+                                                                  labels = c("Tpex", "Teff-like", "Tex")))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity GENIE3"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_GN3.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_GN3.pdf")
+pdf(save_file, height=6, width=6)
+print(hmp)
+dev.off()
+```
+
+
+
+
+
+```{r}
+TEX_ac_PIDC = merge(TEX_prog_ac_PIDC, TEX_int_ac_PIDC, by = 'row.names', all = TRUE)
+rownames(TEX_ac_PIDC) <- TEX_ac_PIDC$Row.names
+TEX_ac_PIDC <- TEX_ac_PIDC[-1]
+
+TEX_ac_PIDC = merge(TEX_ac_PIDC, TEX_term_ac_PIDC, by = 'row.names', all = TRUE)
+rownames(TEX_ac_PIDC) <- TEX_ac_PIDC$Row.names
+TEX_ac_PIDC <- TEX_ac_PIDC[-1]
+
+cell_types = c("Tpex", "Teff-like", "Tex")
+cell_label_ord = c(rep("Tpex", dim(TEX_prog_ac_PIDC)[2]), rep("Teff-like", dim(TEX_int_ac_PIDC)[2]), rep("Tex", dim(TEX_term_ac_PIDC)[2]))
+```
+
+
+```{r}
+ac_all = TEX_ac_PIDC
+for (i in 1:dim(ac_all)[2]){
+  ac_all[is.na(ac_all[,i]),i] = min(ac_all[!is.na(ac_all[,i]),i])
+}
+row_mean <- rowMeans(ac_all)
+row_stdev <- apply(ac_all, 1, sd, na.rm=TRUE)
+ac_all_row_norm <- (ac_all - row_mean)/row_stdev
+```
+
+
+```{r, fig.width=6, fig.height=6}
+ids <- match(mk_tf_list, rownames(ac_all))
+exp <- as.matrix(ac_all_row_norm[ids, ])
+rownames(exp) <- mk_tf_list
+df <- data.frame("cell_type" = factor(cell_label_ord, levels = cell_types))
+n <- length(cell_types)
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- cell_types
+min_col_th = -2
+max_col_th = 2
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type"),
+                                                                  labels = c("Tpex", "Teff-like", "Tex")))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity PIDC"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_PIDC.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_TEX_TF_PIDC.pdf")
+pdf(save_file, height=6, width=6)
+print(hmp)
+dev.off()
+```
+
+
+
+

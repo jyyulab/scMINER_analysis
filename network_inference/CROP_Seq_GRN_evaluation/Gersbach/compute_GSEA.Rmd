@@ -1,0 +1,1071 @@
+---
+title: "compute_GSEA"
+output: html_document
+date: "2024-02-17"
+---
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+sce_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/sce_filt_results.Rdata"
+load(sce_inp_file)
+supercell_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/NT_supercell_sce.Rdata"
+load(supercell_inp_file)
+filt_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/filt_targets_results.Rdata"
+load(filt_inp_file)
+```
+
+
+```{r}
+pv = "0.000001"
+root_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach"
+```
+
+
+```{r}
+D1_SJ_TF_file = file.path("/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/SJARACNE_NT_supercell/D1_NT_12911_12911_136",  paste("tf_", pv, sep = ""), "consensus_network_ncol_.txt")
+D1_SJ_TF = read.table(D1_SJ_TF_file, header = TRUE)
+srt <- sort(abs(D1_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+D1_SJ_TF_srt <- D1_SJ_TF[srt$ix,]
+D1_SJ_TF_edges_corr <- data.frame(source = D1_SJ_TF_srt$source, target = D1_SJ_TF_srt$target, 
+                                  score = abs(D1_SJ_TF_srt$spearman), sign = sign(D1_SJ_TF_srt$spearman))
+srt <- sort(D1_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+D1_SJ_TF_srt <- D1_SJ_TF[srt$ix,]
+D1_SJ_TF_edges_MI <- data.frame(source = D1_SJ_TF_srt$source, target = D1_SJ_TF_srt$target, 
+                                score = D1_SJ_TF_srt$MI, sign = sign(D1_SJ_TF_srt$spearman))
+
+
+D2_SJ_TF_file = file.path("/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/SJARACNE_NT_supercell/D2_NT_12845_12845_158",  paste("tf_", pv, sep = ""), "consensus_network_ncol_.txt")
+D2_SJ_TF = read.table(D2_SJ_TF_file, header = TRUE)
+srt <- sort(abs(D2_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+D2_SJ_TF_srt <- D2_SJ_TF[srt$ix,]
+D2_SJ_TF_edges_corr <- data.frame(source = D2_SJ_TF_srt$source, target = D2_SJ_TF_srt$target, 
+                                  score = abs(D2_SJ_TF_srt$spearman), sign = sign(D2_SJ_TF_srt$spearman))
+srt <- sort(D2_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+D2_SJ_TF_srt <- D2_SJ_TF[srt$ix,]
+D2_SJ_TF_edges_MI <- data.frame(source = D2_SJ_TF_srt$source, target = D2_SJ_TF_srt$target, 
+                                score = D2_SJ_TF_srt$MI, sign = sign(D2_SJ_TF_srt$spearman))
+
+D3_SJ_TF_file = file.path("/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/SJARACNE_NT_supercell/D3_NT_12549_12549_159",  paste("tf_", pv, sep = ""), "consensus_network_ncol_.txt")
+D3_SJ_TF = read.table(D3_SJ_TF_file, header = TRUE)
+srt <- sort(abs(D3_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+D3_SJ_TF_srt <- D3_SJ_TF[srt$ix,]
+D3_SJ_TF_edges_corr <- data.frame(source = D3_SJ_TF_srt$source, target = D3_SJ_TF_srt$target,
+                                  score = abs(D3_SJ_TF_srt$spearman), sign = sign(D3_SJ_TF_srt$spearman))
+srt <- sort(D3_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+D3_SJ_TF_srt <- D3_SJ_TF[srt$ix,]
+D3_SJ_TF_edges_MI <- data.frame(source = D3_SJ_TF_srt$source, target = D3_SJ_TF_srt$target, 
+                                score = D3_SJ_TF_srt$MI, sign = sign(D3_SJ_TF_srt$spearman))
+```
+
+
+```{r}
+D1_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/GRNBoost2_supercell/D1_GRNBoost2_supercell_tf_network.txt"
+D1_GRNB2_TF = read.table(D1_GRNB2_TF_file, header = FALSE)
+srt <- sort(D1_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+D1_GRNB2_TF_srt <- D1_GRNB2_TF[srt$ix,]
+D1_GRNB2_TF_edges <- data.frame(source = D1_GRNB2_TF_srt$V1, target = D1_GRNB2_TF_srt$V2, score = D1_GRNB2_TF_srt$V3)
+
+D2_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/GRNBoost2_supercell/D2_GRNBoost2_supercell_tf_network.txt"
+D2_GRNB2_TF = read.table(D2_GRNB2_TF_file, header = FALSE)
+srt <- sort(D2_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+D2_GRNB2_TF_srt <- D2_GRNB2_TF[srt$ix,]
+D2_GRNB2_TF_edges <- data.frame(source = D2_GRNB2_TF_srt$V1, target = D2_GRNB2_TF_srt$V2, score = D2_GRNB2_TF_srt$V3)
+
+D3_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/GRNBoost2_supercell/D3_GRNBoost2_supercell_tf_network.txt"
+D3_GRNB2_TF = read.table(D3_GRNB2_TF_file, header = FALSE)
+srt <- sort(D3_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+D3_GRNB2_TF_srt <- D3_GRNB2_TF[srt$ix,]
+D3_GRNB2_TF_edges <- data.frame(source = D3_GRNB2_TF_srt$V1, target = D3_GRNB2_TF_srt$V2, score = D3_GRNB2_TF_srt$V3)
+```
+
+
+```{r}
+D1_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/GENIE3_supercell/D1_GENIE3_supercell_tf_network.txt"
+D1_GN3_TF = read.table(D1_GN3_TF_file, header = FALSE)
+srt <- sort(D1_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+D1_GN3_TF_srt <- D1_GN3_TF[srt$ix,]
+D1_GN3_TF_edges <- data.frame(source = D1_GN3_TF_srt$V1, target = D1_GN3_TF_srt$V2, score = D1_GN3_TF_srt$V3)
+
+D2_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/GENIE3_supercell/D2_GENIE3_supercell_tf_network.txt"
+D2_GN3_TF = read.table(D2_GN3_TF_file, header = FALSE)
+srt <- sort(D2_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+D2_GN3_TF_srt <- D2_GN3_TF[srt$ix,]
+D2_GN3_TF_edges <- data.frame(source = D2_GN3_TF_srt$V1, target = D2_GN3_TF_srt$V2, score = D2_GN3_TF_srt$V3)
+
+D3_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/GENIE3_supercell/D3_GENIE3_supercell_tf_network.txt"
+D3_GN3_TF = read.table(D3_GN3_TF_file, header = FALSE)
+srt <- sort(D3_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+D3_GN3_TF_srt <- D3_GN3_TF[srt$ix,]
+D3_GN3_TF_edges <- data.frame(source = D3_GN3_TF_srt$V1, target = D3_GN3_TF_srt$V2, score = D3_GN3_TF_srt$V3)
+```
+
+```{r}
+D1_sel_targets = union(sel_tar_per_sample$D1_a, sel_tar_per_sample$D1_i)
+D2_sel_targets = union(sel_tar_per_sample$D2_a, sel_tar_per_sample$D2_i)
+D3_sel_targets = union(sel_tar_per_sample$D3_a, sel_tar_per_sample$D3_i)
+sel_targets = Reduce(union, list(D1_sel_targets, D2_sel_targets, D3_sel_targets))
+```
+
+```{r}
+D1_PIDC_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/PIDC_supercell/D1_PIDC_network.txt"
+D1_PIDC_all = read.table(D1_PIDC_file, header = FALSE)
+ids = D1_PIDC_all$V1 %in% sel_targets
+D1_PIDC_TF <- D1_PIDC_all[ids,]
+srt <- sort(D1_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+D1_PIDC_TF_srt <- D1_PIDC_TF[srt$ix,]
+D1_PIDC_TF_edges <- data.frame(source = D1_PIDC_TF_srt$V1, target = D1_PIDC_TF_srt$V2, score = D1_PIDC_TF_srt$V3)
+
+D2_PIDC_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/PIDC_supercell/D2_PIDC_network.txt"
+D2_PIDC_all = read.table(D2_PIDC_file, header = FALSE)
+ids = D2_PIDC_all$V1 %in% sel_targets
+D2_PIDC_TF <- D2_PIDC_all[ids,]
+srt <- sort(D2_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+D2_PIDC_TF_srt <- D2_PIDC_TF[srt$ix,]
+D2_PIDC_TF_edges <- data.frame(source = D2_PIDC_TF_srt$V1, target = D2_PIDC_TF_srt$V2, score = D2_PIDC_TF_srt$V3)
+
+D3_PIDC_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Gersbach/data/PIDC_supercell/D3_PIDC_network.txt"
+D3_PIDC_all = read.table(D3_PIDC_file, header = FALSE)
+ids = D3_PIDC_all$V1 %in% sel_targets
+D3_PIDC_TF <- D3_PIDC_all[ids,]
+srt <- sort(D3_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+D3_PIDC_TF_srt <- D3_PIDC_TF[srt$ix,]
+D3_PIDC_TF_edges <- data.frame(source = D3_PIDC_TF_srt$V1, target = D3_PIDC_TF_srt$V2, score = D3_PIDC_TF_srt$V3)
+```
+
+
+```{r}
+rm(D1_PIDC_all)
+rm(D2_PIDC_all)
+rm(D3_PIDC_all)
+```
+
+
+```{r}
+net1 <- D1_SJ_TF_edges_MI
+net2 <- D1_GRNB2_TF_edges
+net3 <- D1_GN3_TF_edges
+net4 <- D1_PIDC_TF_edges
+D1_tar_n <- sapply(sel_targets, function(tf) min(sum(net1$source == tf), sum(net2$source == tf), 
+                                              sum(net3$source == tf), sum(net4$source == tf)))
+D1_tar_n <- as.list(D1_tar_n)
+
+net1 <- D2_SJ_TF_edges_MI
+net2 <- D2_GRNB2_TF_edges
+net3 <- D2_GN3_TF_edges
+net4 <- D2_PIDC_TF_edges
+D2_tar_n <- sapply(sel_targets, function(tf) min(sum(net1$source == tf), sum(net2$source == tf), 
+                                              sum(net3$source == tf), sum(net4$source == tf)))
+D2_tar_n <- as.list(D2_tar_n)
+
+net1 <- D3_SJ_TF_edges_MI
+net2 <- D3_GRNB2_TF_edges
+net3 <- D3_GN3_TF_edges
+net4 <- D3_PIDC_TF_edges
+D3_tar_n <- sapply(sel_targets, function(tf) min(sum(net1$source == tf), sum(net2$source == tf), 
+                                              sum(net3$source == tf), sum(net4$source == tf)))
+D3_tar_n <- as.list(D3_tar_n)
+
+
+net <- D1_SJ_TF_edges_MI
+D1_SJ_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D1_tar_n[[tf]],]))
+srt <- sort(D1_SJ_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D1_SJ_TF_edges_red <- D1_SJ_TF_edges_red[srt$ix,]
+
+net <- D2_SJ_TF_edges_MI
+D2_SJ_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D2_tar_n[[tf]],]))
+srt <- sort(D2_SJ_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D2_SJ_TF_edges_red <- D2_SJ_TF_edges_red[srt$ix,]
+
+net <- D3_SJ_TF_edges_MI
+D3_SJ_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D3_tar_n[[tf]],]))
+srt <- sort(D3_SJ_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D3_SJ_TF_edges_red <- D3_SJ_TF_edges_red[srt$ix,]
+
+
+net <- D1_GRNB2_TF_edges
+D1_GRNB2_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D1_tar_n[[tf]],]))
+srt <- sort(D1_GRNB2_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D1_GRNB2_TF_edges_red <- D1_GRNB2_TF_edges_red[srt$ix,]
+
+net <- D2_GRNB2_TF_edges
+D2_GRNB2_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D2_tar_n[[tf]],]))
+srt <- sort(D2_GRNB2_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D2_GRNB2_TF_edges_red <- D2_GRNB2_TF_edges_red[srt$ix,]
+
+net <- D3_GRNB2_TF_edges
+D3_GRNB2_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D3_tar_n[[tf]],]))
+srt <- sort(D3_GRNB2_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D3_GRNB2_TF_edges_red <- D3_GRNB2_TF_edges_red[srt$ix,]
+
+
+
+net <- D1_GN3_TF_edges
+D1_GN3_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D1_tar_n[[tf]],]))
+srt <- sort(D1_GN3_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D1_GN3_TF_edges_red <- D1_GN3_TF_edges_red[srt$ix,]
+
+net <- D2_GN3_TF_edges
+D2_GN3_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D2_tar_n[[tf]],]))
+srt <- sort(D2_GN3_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D2_GN3_TF_edges_red <- D2_GN3_TF_edges_red[srt$ix,]
+
+net <- D3_GN3_TF_edges
+D3_GN3_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D3_tar_n[[tf]],]))
+srt <- sort(D3_GN3_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D3_GN3_TF_edges_red <- D3_GN3_TF_edges_red[srt$ix,]
+
+
+
+net <- D1_PIDC_TF_edges
+D1_PIDC_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D1_tar_n[[tf]],]))
+srt <- sort(D1_PIDC_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D1_PIDC_TF_edges_red <- D1_PIDC_TF_edges_red[srt$ix,]
+
+net <- D2_PIDC_TF_edges
+D2_PIDC_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D2_tar_n[[tf]],]))
+srt <- sort(D2_PIDC_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D2_PIDC_TF_edges_red <- D2_PIDC_TF_edges_red[srt$ix,]
+
+net <- D3_PIDC_TF_edges
+D3_PIDC_TF_edges_red <- Reduce(rbind, lapply(sel_targets, function(tf) net[net$source == tf,][1:D3_tar_n[[tf]],]))
+srt <- sort(D3_PIDC_TF_edges_red$score, decreasing = TRUE, index.return=TRUE)
+D3_PIDC_TF_edges_red <- D3_PIDC_TF_edges_red[srt$ix,]
+```
+
+
+```{r}
+get_ES <- function(rank_profile=NULL,use_genes=NULL,weighted.score.type=1){
+  gene.list <- names(rank_profile)
+  correl.vector <- rank_profile
+  tag.indicator <- sign(match(gene.list, use_genes, nomatch=0))# notice that the sign is 0 (no tag) or 1 (tag)
+  no.tag.indicator <- 1 - tag.indicator
+  N <- length(gene.list)
+  Nh <- length(use_genes)
+  Nm <-  N - Nh
+  if (weighted.score.type == 0) {
+    correl.vector <- rep(1, N)
+  }
+  alpha <- weighted.score.type
+  correl.vector <- abs(correl.vector**alpha)
+  sum.correl.tag    <- sum(correl.vector[tag.indicator == 1])
+  norm.tag    <- 1.0/sum.correl.tag
+  norm.no.tag <- 1.0/Nm
+  RES <- cumsum(tag.indicator * correl.vector * norm.tag - no.tag.indicator * norm.no.tag)
+  max.ES <- max(RES)
+  min.ES <- min(RES)
+  if (isTRUE(max.ES > - min.ES)){
+    #      ES <- max.ES
+    ES <- signif(max.ES, digits = 5)
+    arg.ES <- which.max(RES)
+  } else {
+    #      ES <- min.ES
+    ES <- signif(min.ES, digits=5)
+    arg.ES <- which.min(RES)
+  }
+  return(list(ES = ES, arg.ES = arg.ES, RES = RES, indicator = tag.indicator))
+}
+```
+
+
+```{r}
+library(SINBA)
+library(metap)
+
+#min_pv = 2.2e-16
+
+comp_ES_all_pos_neg = function(gene, smpl, lfc_data, net) {
+  rank_profile <- lfc_data[[smpl]][[gene]]$logFC
+  names(rank_profile) <- rownames(lfc_data[[smpl]][[gene]])
+  rank_profile_abs <- sort(abs(rank_profile), decreasing = TRUE)
+  
+  gene_set_pos <- net$target[net$source == gene & net$sign == 1]
+  gene_set_pos <- gene_set_pos[gene_set_pos %in% names(rank_profile)]
+  rank_set_pos <- names(rank_profile)[names(rank_profile) %in% gene_set_pos]
+  rank_set_pos_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set_pos]
+  
+  ES_res_pos = NA
+  ES_res_pos$ks_pv = NA
+  ES_res_pos$D = NA
+  ES_res_pos$r_p = NA
+  ES_res_pos$ks_res = NA
+  ES_res_pos$sp_cor = NA
+  ES_res_pos$sp_cor_abs = NA
+  if (!isEmpty(gene_set_pos)){
+    ES_res_pos <- get_ES(rank_profile, gene_set_pos)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set_pos])
+    ES_res_pos$ks_pv <- ks_res$p.value
+    ES_res_pos$D <- ks_res$statistic
+    ES_res_pos$r_p <- rank_profile
+    ES_res_pos$ks_res <- ks_res
+    ES_res_pos$sp_cor <- as.numeric(cor.test(x = match(gene_set_pos, gene_set_pos), y = match(gene_set_pos, rank_set_pos), method = "spearman")$estimate)
+    ES_res_pos$sp_cor_abs <- as.numeric(cor.test(x = match(gene_set_pos, gene_set_pos), y = match(gene_set_pos, rank_set_pos_abs), method = "spearman")$estimate)
+  }
+
+  gene_set_neg <- net$target[net$source == gene & net$sign == -1]
+  gene_set_neg <- gene_set_neg[gene_set_neg %in% names(rank_profile)]
+  rank_set_neg <- names(rank_profile)[names(rank_profile) %in% gene_set_neg]
+  rank_set_neg_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set_neg]
+  ES_res_neg = NA
+  ES_res_neg$ks_pv = NA
+  ES_res_neg$D = NA
+  ES_res_neg$r_p = NA
+  ES_res_neg$ks_res = NA
+  ES_res_neg$sp_cor = NA
+  ES_res_neg$sp_cor_abs = NA
+  if (!isEmpty(gene_set_neg)){
+    ES_res_neg <- get_ES(rank_profile, gene_set_neg)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set_neg])
+    ES_res_neg$ks_pv <- ks_res$p.value
+    ES_res_neg$D <- ks_res$statistic
+    ES_res_neg$r_p <- rank_profile
+    ES_res_neg$ks_res <- ks_res
+    ES_res_neg$sp_cor <- as.numeric(cor.test(x = match(gene_set_neg, gene_set_neg), y = match(gene_set_neg, rank_set_neg), method = "spearman")$estimate)
+    ES_res_neg$sp_cor_abs <- as.numeric(cor.test(x = match(gene_set_neg, gene_set_neg), y = match(gene_set_neg, rank_set_neg_abs), method = "spearman")$estimate)
+  }
+  
+  gene_set <- net$target[net$source == gene]
+  gene_set <- gene_set[gene_set %in% names(rank_profile)]
+  rank_set <- names(rank_profile)[names(rank_profile) %in% gene_set]
+  rank_set_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set]
+  ES_res = NA
+  ES_res$ks_pv = NA
+  ES_res$D = NA
+  ES_res$r_p = NA
+  ES_res$ks_res = NA
+  ES_res$sp_cor = NA
+  ES_res$sp_cor_abs = NA
+  if (!isEmpty(gene_set)){
+    ES_res <- get_ES(rank_profile, gene_set)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set])
+    ES_res$ks_pv <- ks_res$p.value
+    ES_res$D <- ks_res$statistic
+    ES_res$r_p <- rank_profile
+    ES_res$ks_res <- ks_res
+    #pv1 = max(ES_res_pos$ks_pv, min_pv)
+    #pv2 = max(ES_res_neg$ks_pv, min_pv)
+    pv1 = ES_res_pos$ks_pv
+    pv2 = ES_res_neg$ks_pv
+    ES_res$fisher_pv <- sumlog(c(pv1, pv2))$p
+    ES_res$sp_cor <- as.numeric(cor.test(x = match(gene_set, gene_set), y = match(gene_set, rank_set), method = "spearman")$estimate)
+    ES_res$sp_cor_abs <- as.numeric(cor.test(x = match(gene_set, gene_set), y = match(gene_set, rank_set_abs), method = "spearman")$estimate)
+  }
+
+  return(list("all" = ES_res, "pos" = ES_res_pos, "neg" = ES_res_neg))
+}
+
+comp_ES_all = function(gene, smpl, lfc_data, net) {
+  rank_profile <- lfc_data[[smpl]][[gene]]$logFC
+  names(rank_profile) <- rownames(lfc_data[[smpl]][[gene]])
+  rank_profile_abs <- sort(abs(rank_profile), decreasing = TRUE)
+
+  gene_set <- net$target[net$source == gene]
+  gene_set <- gene_set[gene_set %in% names(rank_profile)]
+  rank_set <- names(rank_profile)[names(rank_profile) %in% gene_set]
+  rank_set_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set]
+  ES_res = NA
+  ES_res$ks_pv = NA
+  ES_res$D = NA
+  ES_res$r_p = NA
+  ES_res$ks_res = NA
+  ES_res$sp_cor = NA
+  ES_res$sp_cor_abs = NA
+  if (!isEmpty(gene_set)){
+    ES_res <- get_ES(rank_profile, gene_set)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set])
+    ES_res$ks_pv <- ks_res$p.value
+    ES_res$D <- ks_res$statistic
+    ES_res$r_p <- rank_profile
+    ES_res$ks_res <- ks_res
+    ES_res$sp_cor <- as.numeric(cor.test(x = match(gene_set, gene_set), y = match(gene_set, rank_set), method = "spearman")$estimate)
+    ES_res$sp_cor_abs <- as.numeric(cor.test(x = match(gene_set, gene_set), y = match(gene_set, rank_set_abs), method = "spearman")$estimate)
+  }
+
+  return(list("all" = ES_res))
+}
+```
+
+
+```{r}
+lfc_data = list()
+for (smpl in names(lfc_all)){
+  lfc_data[[smpl]] = list()
+  for (tf in names(lfc_all[[smpl]])){
+    lfc = lfc_all[[smpl]][[tf]]$LogFC
+    names(lfc) = lfc_all[[smpl]][[tf]]$gene
+    lfc = sort(lfc, decreasing = TRUE)
+    df = data.frame(logFC = lfc)
+    rownames(df) = names(lfc)
+    lfc_data[[smpl]][[tf]] = df
+  }
+}
+```
+
+
+```{r}
+GSEA_scMINER = list()
+
+net = D1_SJ_TF_edges_red
+smpl = "D1_a"
+GSEA_scMINER[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all_pos_neg(gene, smpl, lfc_data, net))
+names(GSEA_scMINER[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D1_i"
+GSEA_scMINER[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all_pos_neg(gene, smpl, lfc_data, net))
+names(GSEA_scMINER[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D2_SJ_TF_edges_red
+smpl = "D2_a"
+GSEA_scMINER[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all_pos_neg(gene, smpl, lfc_data, net))
+names(GSEA_scMINER[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D2_i"
+GSEA_scMINER[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all_pos_neg(gene, smpl, lfc_data, net))
+names(GSEA_scMINER[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D3_SJ_TF_edges_red
+smpl = "D3_a"
+GSEA_scMINER[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all_pos_neg(gene, smpl, lfc_data, net))
+names(GSEA_scMINER[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D3_i"
+GSEA_scMINER[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all_pos_neg(gene, smpl, lfc_data, net))
+names(GSEA_scMINER[[smpl]]) <- sel_tar_per_sample[[smpl]]
+```
+
+
+```{r}
+GSEA_GRNB2 = list()
+
+net = D1_GRNB2_TF_edges_red
+smpl = "D1_a"
+GSEA_GRNB2[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GRNB2[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D1_i"
+GSEA_GRNB2[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GRNB2[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D2_GRNB2_TF_edges_red
+smpl = "D2_a"
+GSEA_GRNB2[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GRNB2[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D2_i"
+GSEA_GRNB2[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GRNB2[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D3_GRNB2_TF_edges_red
+smpl = "D3_a"
+GSEA_GRNB2[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GRNB2[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D3_i"
+GSEA_GRNB2[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GRNB2[[smpl]]) <- sel_tar_per_sample[[smpl]]
+```
+
+
+```{r}
+GSEA_GN3 = list()
+
+net = D1_GN3_TF_edges_red
+smpl = "D1_a"
+GSEA_GN3[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GN3[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D1_i"
+GSEA_GN3[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GN3[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D2_GN3_TF_edges_red
+smpl = "D2_a"
+GSEA_GN3[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GN3[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D2_i"
+GSEA_GN3[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GN3[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D3_GN3_TF_edges_red
+smpl = "D3_a"
+GSEA_GN3[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GN3[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D3_i"
+GSEA_GN3[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_GN3[[smpl]]) <- sel_tar_per_sample[[smpl]]
+```
+
+
+```{r}
+GSEA_PIDC = list()
+
+net = D1_PIDC_TF_edges_red
+smpl = "D1_a"
+GSEA_PIDC[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_PIDC[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D1_i"
+GSEA_PIDC[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_PIDC[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D2_PIDC_TF_edges_red
+smpl = "D2_a"
+GSEA_PIDC[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_PIDC[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D2_i"
+GSEA_PIDC[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_PIDC[[smpl]]) <- sel_tar_per_sample[[smpl]]
+
+net = D3_PIDC_TF_edges_red
+smpl = "D3_a"
+GSEA_PIDC[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_PIDC[[smpl]]) <- sel_tar_per_sample[[smpl]]
+smpl = "D3_i"
+GSEA_PIDC[[smpl]] <- lapply(sel_tar_per_sample[[smpl]], function(gene) comp_ES_all(gene, smpl, lfc_data, net))
+names(GSEA_PIDC[[smpl]]) <- sel_tar_per_sample[[smpl]]
+```
+
+
+```{r}
+save(GSEA_scMINER, GSEA_GRNB2, GSEA_GN3, GSEA_PIDC, 
+     file = file.path(root_fold, "data", paste("GSEA_results_pv_", pv, ".Rdata", sep = "")))
+```
+
+
+
+```{r, fig.width=10, fig.height=15}
+options(scipen = 0)
+options(digits = 2)
+
+smpl = "D1_a"
+gene = "BATF3"
+rank_profile = GSEA_scMINER[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER[[smpl]][[gene]]$neg$RES,
+                 GRNBoost2 = GSEA_GRNB2[[smpl]][[gene]]$all$RES,
+                 GENIE3 = GSEA_GN3[[smpl]][[gene]]$all$RES,
+                 PIDC = GSEA_PIDC[[smpl]][[gene]]$all$RES, 
+                 pos = 1:length(GSEA_scMINER[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+
+ids = which(GSEA_GRNB2[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GRNB2[[smpl]][[gene]]$all$RES[ids])
+data_GRNB2 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_GN3[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GN3[[smpl]][[gene]]$all$RES[ids])
+data_GN3 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_PIDC[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_PIDC[[smpl]][[gene]]$all$RES[ids])
+data_PIDC <- data.frame(x = ids, ES = ES)
+
+l_delta = 0
+
+colors <- c("positive" = "red", "negative" = "blue")
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_linedraw(base_size = 16) + 
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), legend.position = "top") +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + ggtitle("scMINER") + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "blue") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+colors <- c("GRNBoost2" = "aquamarine", "GENIE3" = "darkorchid", "PIDC" = "coral")
+p4 <- ggplot(df, aes(x = pos)) + 
+  geom_line(aes(y=GRNBoost2, color = "GRNBoost2"), size = 2) + 
+  geom_line(aes(y=GENIE3, color = "GENIE3"), size = 2) + 
+  geom_line(aes(y=PIDC, color = "PIDC"), size = 2) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_linedraw(base_size = 16) + 
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), legend.position = "top") +
+  labs(color = "Mothod") + scale_color_manual(values = colors) + ggtitle("Alternative methods") +
+  theme(legend.position = "none")
+p5 <- ggplot() + 
+  geom_segment(data = data_GRNB2, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "aquamarine") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p6 <- ggplot() + 
+  geom_segment(data = data_GN3, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "darkorchid") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p7 <- ggplot() + 
+  geom_segment(data = data_PIDC, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "coral") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p8 <- ggplot(df, aes(x = pos, y = rank_profile)) + 
+  geom_ribbon(aes(ymin=0, ymax=rank_profile), color = 'black', alpha = 0.5, size = 0.01) + 
+  ylim(c(-0.4, 0.4)) + xlim(c(0, length(rank_profile))) + 
+  theme_linedraw(base_size = 16) + xlab("Rank") + ylab("LogFC") + 
+  #annotate("text", x=0.93*dim(df)[1], y=-0.8, label="NT", size = 5) +
+  ggtitle("Knockdown vs. NT")
+title <- ggdraw() + draw_label(paste0(gene, " CRISPR activation"), size = 20)
+
+p <- plot_grid(title, p1, p2, p3, p4, p5, p6, p7, p8, align = 'v', ncol = 1, rel_heights = c(0.05, 1, 0.05, 0.05, 1, 0.05, 0.05, 0.05, 1))
+
+ES = GSEA_scMINER[[smpl]][[gene]]$pos$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.2, y = 0.75, hjust = 0, label = ES_lab, color = "red")
+p <- p + annotate("text", x = 0.2, y = 0.75-0.016, hjust = 0, label = pv_lab, color = "red")
+
+ES = GSEA_scMINER[[smpl]][[gene]]$neg$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.76, y = 0.92, hjust = 0, label = ES_lab, color = "blue")
+p <- p + annotate("text", x = 0.76, y = 0.92-0.016, hjust = 0, label = pv_lab, color = "blue")
+p <- p + annotate("text", x = 0.11, y = 0.675, hjust = 1, label = "positive")
+p <- p + annotate("text", x = 0.11, y = 0.660, hjust = 1, label = "negative")
+p <- p + annotate("text", x = 0.11, y = 0.342, hjust = 1, label = "GRNBoost2")
+p <- p + annotate("text", x = 0.11, y = 0.326, hjust = 1, label = "GENIE3")
+p <- p + annotate("text", x = 0.11, y = 0.310, hjust = 1, label = "PIDC")
+
+ES = GSEA_GRNB2[[smpl]][[gene]]$all$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.8, y = 0.5, hjust = 0, label = ES_lab, color = "aquamarine")
+p <- p + annotate("text", x = 0.8, y = 0.5-0.016, hjust = 0, label = pv_lab, color = "aquamarine")
+
+ES = GSEA_PIDC[[smpl]][[gene]]$all$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_PIDC[[smpl]][[gene]]$all$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.8, y = 0.58, hjust = 0, label = ES_lab, color = "darkorchid")
+p <- p + annotate("text", x = 0.8, y = 0.58-0.016, hjust = 0, label = pv_lab, color = "darkorchid")
+
+ES = GSEA_GN3[[smpl]][[gene]]$all$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_GN3[[smpl]][[gene]]$all$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.6, y = 0.58, hjust = 0, label = ES_lab, color = "coral")
+p <- p + annotate("text", x = 0.6, y = 0.58-0.016, hjust = 0, label = pv_lab, color = "coral")
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("GSEA_all_methods_", smpl, "_", gene, "_activation_TF.png"))
+png(save_file, height=15, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("GSEA_all_methods_", smpl, "_", gene, "_activation_TF.pdf"))
+pdf(save_file, height=15, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r, fig.width=10, fig.height=15}
+options(scipen = 0)
+options(digits = 2)
+
+smpl = "D1_i"
+gene = "BATF3"
+rank_profile = GSEA_scMINER[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER[[smpl]][[gene]]$neg$RES,
+                 GRNBoost2 = GSEA_GRNB2[[smpl]][[gene]]$all$RES,
+                 GENIE3 = GSEA_GN3[[smpl]][[gene]]$all$RES,
+                 PIDC = GSEA_PIDC[[smpl]][[gene]]$all$RES, 
+                 pos = 1:length(GSEA_scMINER[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+
+ids = which(GSEA_GRNB2[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GRNB2[[smpl]][[gene]]$all$RES[ids])
+data_GRNB2 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_GN3[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GN3[[smpl]][[gene]]$all$RES[ids])
+data_GN3 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_PIDC[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_PIDC[[smpl]][[gene]]$all$RES[ids])
+data_PIDC <- data.frame(x = ids, ES = ES)
+
+l_delta = 0
+
+colors <- c("positive" = "red", "negative" = "blue")
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_linedraw(base_size = 16) + 
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), legend.position = "top") +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + ggtitle("scMINER") + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "blue") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+colors <- c("GRNBoost2" = "aquamarine", "GENIE3" = "darkorchid", "PIDC" = "coral")
+p4 <- ggplot(df, aes(x = pos)) + 
+  geom_line(aes(y=GRNBoost2, color = "GRNBoost2"), size = 2) + 
+  geom_line(aes(y=GENIE3, color = "GENIE3"), size = 2) + 
+  geom_line(aes(y=PIDC, color = "PIDC"), size = 2) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_linedraw(base_size = 16) + 
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), legend.position = "top") +
+  labs(color = "Mothod") + scale_color_manual(values = colors) + ggtitle("Alternative methods") +
+  theme(legend.position = "none")
+p5 <- ggplot() + 
+  geom_segment(data = data_GRNB2, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "aquamarine") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p6 <- ggplot() + 
+  geom_segment(data = data_GN3, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "darkorchid") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p7 <- ggplot() + 
+  geom_segment(data = data_PIDC, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.5, color = "coral") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1+l_delta, yend = 1+l_delta), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0-l_delta, yend = 0-l_delta), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1])
+p8 <- ggplot(df, aes(x = pos, y = rank_profile)) + 
+  geom_ribbon(aes(ymin=0, ymax=rank_profile), color = 'black', alpha = 0.5, size = 0.01) + 
+  ylim(c(-0.4, 0.4)) + xlim(c(0, length(rank_profile))) + 
+  theme_linedraw(base_size = 16) + xlab("Rank") + ylab("LogFC") + 
+  #annotate("text", x=0.93*dim(df)[1], y=-0.8, label="NT", size = 5) +
+  ggtitle("Knockdown vs. NT")
+title <- ggdraw() + draw_label(paste0(gene, " CRISPR interference"), size = 20)
+
+p <- plot_grid(title, p1, p2, p3, p4, p5, p6, p7, p8, align = 'v', ncol = 1, rel_heights = c(0.05, 1, 0.05, 0.05, 1, 0.05, 0.05, 0.05, 1))
+
+ES = GSEA_scMINER[[smpl]][[gene]]$pos$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.2, y = 0.75, hjust = 0, label = ES_lab, color = "red")
+p <- p + annotate("text", x = 0.2, y = 0.75-0.016, hjust = 0, label = pv_lab, color = "red")
+
+ES = GSEA_scMINER[[smpl]][[gene]]$neg$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.76, y = 0.92, hjust = 0, label = ES_lab, color = "blue")
+p <- p + annotate("text", x = 0.76, y = 0.92-0.016, hjust = 0, label = pv_lab, color = "blue")
+p <- p + annotate("text", x = 0.11, y = 0.675, hjust = 1, label = "positive")
+p <- p + annotate("text", x = 0.11, y = 0.660, hjust = 1, label = "negative")
+p <- p + annotate("text", x = 0.11, y = 0.342, hjust = 1, label = "GRNBoost2")
+p <- p + annotate("text", x = 0.11, y = 0.326, hjust = 1, label = "GENIE3")
+p <- p + annotate("text", x = 0.11, y = 0.310, hjust = 1, label = "PIDC")
+
+ES = GSEA_GRNB2[[smpl]][[gene]]$all$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.6, y = 0.5, hjust = 0, label = ES_lab, color = "aquamarine")
+p <- p + annotate("text", x = 0.6, y = 0.5-0.016, hjust = 0, label = pv_lab, color = "aquamarine")
+
+ES = GSEA_PIDC[[smpl]][[gene]]$all$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_PIDC[[smpl]][[gene]]$all$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.8, y = 0.58, hjust = 0, label = ES_lab, color = "darkorchid")
+p <- p + annotate("text", x = 0.8, y = 0.58-0.016, hjust = 0, label = pv_lab, color = "darkorchid")
+
+ES = GSEA_GN3[[smpl]][[gene]]$all$ES
+ES = formatC(ES, format = "e", digits = 2)
+ES_lab = paste0("ES = ", as.character(ES))
+pv_sign = "="
+pv = GSEA_GN3[[smpl]][[gene]]$all$ks_pv
+if (pv == 0){
+  pv = min_pv
+  pv_sign = "<"
+}
+pv = formatC(pv, format = "e", digits = 2)
+pv_lab = paste("p-value", pv_sign, as.character(pv), sep = ' ')
+p <- p + annotate("text", x = 0.6, y = 0.58, hjust = 0, label = ES_lab, color = "coral")
+p <- p + annotate("text", x = 0.6, y = 0.58-0.016, hjust = 0, label = pv_lab, color = "coral")
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("GSEA_all_methods_", smpl, "_", gene, "_interference_TF.png"))
+png(save_file, height=15, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("GSEA_all_methods_", smpl, "_", gene, "_interference_TF.pdf"))
+pdf(save_file, height=15, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+D1_a_targets <- sel_tar_per_sample[["D1_a"]]
+D1_i_targets <- sel_tar_per_sample[["D1_i"]]
+D2_a_targets <- sel_tar_per_sample[["D2_a"]]
+D2_i_targets <- sel_tar_per_sample[["D2_i"]]
+D3_a_targets <- sel_tar_per_sample[["D3_a"]]
+D3_i_targets <- sel_tar_per_sample[["D3_i"]]
+```
+
+
+
+```{r}
+smpl = "D1_a"
+pv_scMINER_pos <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv)
+pv_scMINER_neg <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv)
+pv_scMINER_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$all$ks_pv)
+pv_scMINER_all_fm <- sapply(sel_tar_per_sample[[smpl]], function(gene) 
+  ifelse(is.null(GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv), NA, GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv))
+pv_GRNB2_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv)
+pv_GN3_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GN3[[smpl]][[gene]]$all$ks_pv)
+pv_PIDC_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_PIDC[[smpl]][[gene]]$all$ks_pv)
+D1_a_ks <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_scMINER_all, pv_scMINER_all_fm, pv_GRNB2_all, pv_GN3_all, pv_PIDC_all)))
+colnames(D1_a_ks) <- c("scMINER_pos", "scMINER_neg", "scMINER_all", "scMINER_all_FM",  "GRNBoost2", "GENIE3", "PIDC")
+D1_a_ks <- -log(D1_a_ks, base = 10)
+
+smpl = "D1_i"
+pv_scMINER_pos <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv)
+pv_scMINER_neg <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv)
+pv_scMINER_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$all$ks_pv)
+pv_scMINER_all_fm <- sapply(sel_tar_per_sample[[smpl]], function(gene) 
+  ifelse(is.null(GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv), NA, GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv))
+pv_GRNB2_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv)
+pv_GN3_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GN3[[smpl]][[gene]]$all$ks_pv)
+pv_PIDC_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_PIDC[[smpl]][[gene]]$all$ks_pv)
+D1_i_ks <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_scMINER_all, pv_scMINER_all_fm, pv_GRNB2_all, pv_GN3_all, pv_PIDC_all)))
+colnames(D1_i_ks) <- c("scMINER_pos", "scMINER_neg", "scMINER_all", "scMINER_all_FM",  "GRNBoost2", "GENIE3", "PIDC")
+D1_i_ks <- -log(D1_i_ks, base = 10)
+
+smpl = "D2_a"
+pv_scMINER_pos <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv)
+pv_scMINER_neg <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv)
+pv_scMINER_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$all$ks_pv)
+pv_scMINER_all_fm <- sapply(sel_tar_per_sample[[smpl]], function(gene) 
+  ifelse(is.null(GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv), NA, GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv))
+pv_GRNB2_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv)
+pv_GN3_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GN3[[smpl]][[gene]]$all$ks_pv)
+pv_PIDC_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_PIDC[[smpl]][[gene]]$all$ks_pv)
+D2_a_ks <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_scMINER_all, pv_scMINER_all_fm, pv_GRNB2_all, pv_GN3_all, pv_PIDC_all)))
+colnames(D2_a_ks) <- c("scMINER_pos", "scMINER_neg", "scMINER_all", "scMINER_all_FM",  "GRNBoost2", "GENIE3", "PIDC")
+D2_a_ks <- -log(D2_a_ks, base = 10)
+
+smpl = "D2_i"
+pv_scMINER_pos <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv)
+pv_scMINER_neg <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv)
+pv_scMINER_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$all$ks_pv)
+pv_scMINER_all_fm <- sapply(sel_tar_per_sample[[smpl]], function(gene) 
+  ifelse(is.null(GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv), NA, GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv))
+pv_GRNB2_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv)
+pv_GN3_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GN3[[smpl]][[gene]]$all$ks_pv)
+pv_PIDC_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_PIDC[[smpl]][[gene]]$all$ks_pv)
+D2_i_ks <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_scMINER_all, pv_scMINER_all_fm, pv_GRNB2_all, pv_GN3_all, pv_PIDC_all)))
+colnames(D2_i_ks) <- c("scMINER_pos", "scMINER_neg", "scMINER_all", "scMINER_all_FM",  "GRNBoost2", "GENIE3", "PIDC")
+D2_i_ks <- -log(D2_i_ks, base = 10)
+
+smpl = "D3_a"
+pv_scMINER_pos <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv)
+pv_scMINER_neg <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv)
+pv_scMINER_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$all$ks_pv)
+pv_scMINER_all_fm <- sapply(sel_targets, function(gene) 
+  ifelse(is.null(GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv), NA, GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv))
+pv_GRNB2_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv)
+pv_GN3_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GN3[[smpl]][[gene]]$all$ks_pv)
+pv_PIDC_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_PIDC[[smpl]][[gene]]$all$ks_pv)
+D3_a_ks <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_scMINER_all, pv_scMINER_all_fm, pv_GRNB2_all, pv_GN3_all, pv_PIDC_all)))
+colnames(D3_a_ks) <- c("scMINER_pos", "scMINER_neg", "scMINER_all", "scMINER_all_FM",  "GRNBoost2", "GENIE3", "PIDC")
+D3_a_ks <- -log(D3_a_ks, base = 10)
+
+smpl = "D3_i"
+pv_scMINER_pos <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$pos$ks_pv)
+pv_scMINER_neg <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$neg$ks_pv)
+pv_scMINER_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_scMINER[[smpl]][[gene]]$all$ks_pv)
+pv_scMINER_all_fm <- sapply(sel_tar_per_sample[[smpl]], function(gene) 
+  ifelse(is.null(GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv), NA, GSEA_scMINER[[smpl]][[gene]]$all$fisher_pv))
+pv_GRNB2_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv)
+pv_GN3_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_GN3[[smpl]][[gene]]$all$ks_pv)
+pv_PIDC_all <- sapply(sel_tar_per_sample[[smpl]], function(gene) GSEA_PIDC[[smpl]][[gene]]$all$ks_pv)
+D3_i_ks <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_scMINER_all, pv_scMINER_all_fm, pv_GRNB2_all, pv_GN3_all, pv_PIDC_all)))
+colnames(D3_i_ks) <- c("scMINER_pos", "scMINER_neg", "scMINER_all", "scMINER_all_FM",  "GRNBoost2", "GENIE3", "PIDC")
+D3_i_ks <- -log(D3_i_ks, base = 10)
+```
+
+```{r, fig.width=7, fig.height=4}
+library(hrbrthemes)
+
+df = data.frame(scMINER = D1_a_ks$scMINER_all_FM,
+           GRNBoost2 = D1_a_ks$GRNBoost2,
+           GENIE3 = D1_a_ks$GENIE3,
+           PIDC = D1_a_ks$PIDC)
+rownames(df) <- rownames(D1_a_ks)
+df = df[rowSums(is.na(df)) == 0,]
+all_pv = unlist(as.vector(df))
+#max_val = max(all_pv[!is.infinite(all_pv)])
+max_val = -log(min_pv, base = 10)
+df$scMINER[is.infinite(df$scMINER)] = max_val
+df$GRNBoost2[is.infinite(df$GRNBoost2)] = max_val
+df$GENIE3[is.infinite(df$GENIE3)] = max_val
+df$PIDC[is.infinite(df$PIDC)] = max_val
+df$target <- rownames(df)
+df <- melt(df, id = c("target"))
+colnames(df) <- c("target", "method", "value")
+p <- ggplot(df, aes(x = method, y = target, fill = value)) +
+  geom_tile() + scale_fill_gradient2(low="white", high="red") + 
+  geom_text(aes(label = round(value,3)), color = "black", size = 4) +
+  theme_classic() + ggtitle("CRISPR activation, GSEA p-value") + labs(fill="-lop(p-value)") + 
+  ylab("TF") + xlab("Model")
+p
+```
+
+```{r}
+save_file = file.path(save_fold, "D1_a_ks_pv.png")
+png(save_file, height=5, width=10, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, "D1_a_ks_pv.pdf")
+pdf(save_file, height=5, width=10)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width=7, fig.height=4}
+library(hrbrthemes)
+
+df = data.frame(scMINER = D1_i_ks$scMINER_all_FM,
+           GRNBoost2 = D1_i_ks$GRNBoost2,
+           GENIE3 = D1_i_ks$GENIE3,
+           PIDC = D1_i_ks$PIDC)
+rownames(df) <- rownames(D1_i_ks)
+df = df[rowSums(is.na(df)) == 0,]
+all_pv = unlist(as.vector(df))
+#max_val = max(all_pv[!is.infinite(all_pv)])
+max_val = -log(min_pv, base = 10)
+df$scMINER[is.infinite(df$scMINER)] = max_val
+df$GRNBoost2[is.infinite(df$GRNBoost2)] = max_val
+df$GENIE3[is.infinite(df$GENIE3)] = max_val
+df$PIDC[is.infinite(df$PIDC)] = max_val
+df$target <- rownames(df)
+df <- melt(df, id = c("target"))
+colnames(df) <- c("target", "method", "value")
+p <- ggplot(df, aes(x = method, y = target, fill = value)) +
+  geom_tile() + scale_fill_gradient2(low="white", high="red") + 
+  geom_text(aes(label = round(value,3)), color = "black", size = 4) +
+  theme_classic() + ggtitle("CRISPR interference, GSEA p-value") + labs(fill="-lop(p-value)") + 
+  ylab("TF") + xlab("Model")
+p
+```
+
+```{r}
+save_file = file.path(save_fold, "D1_i_ks_pv.png")
+png(save_file, height=5, width=10, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, "D1_i_ks_pv.pdf")
+pdf(save_file, height=5, width=10)
+p
+dev.off()
+```
+
+

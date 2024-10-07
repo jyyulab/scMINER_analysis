@@ -1,0 +1,3346 @@
+---
+title: "plot_GSEA_top_genes_SIG"
+output: html_document
+date: "2024-07-16"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+library(cowplot)
+library(ggpmisc)
+#display.brewer.all()
+```
+
+
+```{r}
+sce_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/sce_filt_results_proc.Rdata"
+load(sce_inp_file)
+filt_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/filt_targets_results.Rdata"
+load(filt_inp_file)
+```
+
+
+```{r}
+sample1 = colData(sce1_filt)$sample[1]
+sample2 = colData(sce2_filt)$sample[1]
+sample3 = colData(sce3_filt)$sample[1]
+sample4 = colData(sce4_filt)$sample[1]
+```
+
+
+```{r}
+pv = 0.001
+ref_type = "NT"
+inp_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data"
+options(scipen = 100, digits = 20)
+inp_tf_file = file.path(inp_fold, paste0(ref_type, "_TF_GSEA.Rdata"))
+load(inp_tf_file)
+inp_sig_file = file.path(inp_fold, paste0(ref_type, "_SIG_GSEA.Rdata"))
+load(inp_sig_file)
+#GSEA_scMINER_SIG
+GSEA_scMINER_TF = GSEA_scMINER
+```
+
+
+```{r}
+save_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/results/GSEA_top_genes_SIG"
+dir.create(save_fold)
+```
+
+```{r}
+lfc_data = list()
+for (smpl in names(lfc_all)){
+  lfc_data[[smpl]] = list()
+  for (target in names(lfc_all[[smpl]][[ref_type]])){
+    lfc = lfc_all[[smpl]][[ref_type]][[target]]$logFC
+    names(lfc) = lfc_all[[smpl]][[ref_type]][[target]]$gene
+    lfc = sort(lfc, decreasing = TRUE)
+    df = data.frame(logFC = lfc)
+    rownames(df) = names(lfc)
+    lfc_data[[smpl]][[target]] = df
+  }
+}
+```
+
+
+```{r}
+TF_targets1 = names(GSEA_scMINER_TF[[sample1]])
+TF_targets2 = names(GSEA_scMINER_TF[[sample2]])
+TF_targets3 = names(GSEA_scMINER_TF[[sample3]])
+TF_targets4 = names(GSEA_scMINER_TF[[sample4]])
+
+SIG_targets1 = names(GSEA_scMINER_SIG[[sample1]])
+SIG_targets2 = names(GSEA_scMINER_SIG[[sample2]])
+SIG_targets3 = names(GSEA_scMINER_SIG[[sample3]])
+SIG_targets4 = names(GSEA_scMINER_SIG[[sample4]])
+```
+
+
+```{r}
+pv_scMINER_fm <- sapply(TF_targets1, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample1]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample1]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets1, function(gene) GSEA_GRNB2[[sample1]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets1, function(gene) GSEA_GN3[[sample1]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets1, function(gene) GSEA_PIDC[[sample1]][[gene]]$all$ks_pv)
+pv_ks1 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks1) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks1 <- -log(pv_ks1, base = 10)
+
+pv_scMINER_fm <- sapply(TF_targets2, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample2]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample2]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets2, function(gene) GSEA_GRNB2[[sample2]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets2, function(gene) GSEA_GN3[[sample2]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets2, function(gene) GSEA_PIDC[[sample2]][[gene]]$all$ks_pv)
+pv_ks2 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks2) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks2 <- -log(pv_ks2, base = 10)
+
+pv_scMINER_fm <- sapply(TF_targets3, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample3]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample3]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets3, function(gene) GSEA_GRNB2[[sample3]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets3, function(gene) GSEA_GN3[[sample3]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets3, function(gene) GSEA_PIDC[[sample3]][[gene]]$all$ks_pv)
+pv_ks3 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks3) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks3 <- -log(pv_ks3, base = 10)
+
+pv_scMINER_fm <- sapply(TF_targets4, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample4]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample4]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets4, function(gene) GSEA_GRNB2[[sample4]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets4, function(gene) GSEA_GN3[[sample4]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets4, function(gene) GSEA_PIDC[[sample4]][[gene]]$all$ks_pv)
+pv_ks4 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks4) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks4 <- -log(pv_ks4, base = 10)
+```
+
+
+```{r}
+pv_SIG_pos <- sapply(SIG_targets3, function(gene) GSEA_scMINER_SIG[[sample3]][[gene]]$pos$ks_pv)
+pv_SIG_neg <- sapply(SIG_targets3, function(gene) GSEA_scMINER_SIG[[sample3]][[gene]]$neg$ks_pv)
+pv_SIG_fm <- sapply(SIG_targets3, function(gene) 
+  ifelse(is.null(GSEA_scMINER_SIG[[sample3]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_SIG[[sample3]][[gene]]$all$fisher_pv))
+
+ids = !(is.na(pv_SIG_pos) | is.na(pv_SIG_neg) | is.na(pv_SIG_fm))
+pv_SIG_pos <- pv_SIG_pos[ids]
+pv_SIG_neg <- pv_SIG_neg[ids]
+pv_SIG_fm <- pv_SIG_fm[ids]
+
+pv_ks3_SIG <- as.data.frame(Reduce(cbind, list(pv_SIG_pos, pv_SIG_neg)))
+colnames(pv_ks3_SIG) <- c("positive",  "negative")
+pv_ks3_SIG <- -log(pv_ks3_SIG, base = 10)
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "TYMP"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "IFNGR2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+```{r}
+smpl = sample3
+gene = "TAPBP"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "IL1B"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "EIF2AK2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+```{r}
+smpl = sample3
+gene = "MYCBP2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "C3"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "TNFAIP3"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "B4GALT1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "TLR2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "TGFB1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.15
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.5
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "G6PD"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "PIK3R1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "MYD88"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+```{r}
+smpl = sample3
+gene = "NAMPT"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "UQCR10"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "ABCF1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "MALT1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "CARD9"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "CYLD"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "ATP6AP1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "SEC61A1"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "TAB2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+smpl = sample3
+gene = "HLA-E"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+smpl = sample3
+gene = "POLR2E"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+x_pos = which(abs(df$scMINER_pos) == max(abs(df$scMINER_pos)))
+y_pos = df$scMINER_pos[x_pos]
+
+x_neg = which(abs(df$scMINER_neg) == max(abs(df$scMINER_neg)))
+y_neg = df$scMINER_neg[x_neg]
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+

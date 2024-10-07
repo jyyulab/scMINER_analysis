@@ -1,0 +1,406 @@
+---
+title: "Fishers_test"
+output: html_document
+date: "2024-08-07"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pROC)
+library(gsubfn)
+library(PRROC)
+```
+
+
+```{r}
+inp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/read_and_proccess_networks/ATAC_regulons.Rdata"
+load(inp_file)
+
+inp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/read_and_proccess_networks/SJ_regulons.Rdata"
+load(inp_file)
+
+inp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/read_and_proccess_networks/GRNB2_regulons.Rdata"
+load(inp_file)
+
+save_fold = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/Fishers_test"
+dir.create(save_fold)
+```
+
+
+```{r}
+cell_type = "Teff-like"
+network_type = "scMINER"
+net_regulons = TEX_int_SJ_regulons
+ATAC_regulons = TEX_int_ATAC_regulons
+```
+
+
+```{r}
+overlap = intersect(names(net_regulons), names(ATAC_regulons))
+```
+
+
+```{r}
+N = 25000
+atacVSnet <- data.frame()
+for (i in 1:length(overlap)) {
+  gene = overlap[i]
+  ATAC_targets = ATAC_regulons[[gene]]
+  net_targets = net_regulons[[gene]]
+  ATAC_in_net <- ATAC_targets[ATAC_targets %in% net_targets]
+  n1 <- length(ATAC_targets); n2 <- length(net_targets); n3 <- length(ATAC_in_net)
+  res <- fisher.test(matrix(c((N-n1-n2+n3),(n1-n3),(n2-n3),n3), nrow = 2, byrow = T))
+  atacVSnet[i,1] <- gene;
+  atacVSnet[i,2] <- N;
+  atacVSnet[i,3] <- n1;
+  atacVSnet[i,4] <- n2;
+  atacVSnet[i,5] <- n3;
+  atacVSnet[i,6] <- as.numeric(res$p.value);
+  atacVSnet[i,7] <- as.numeric(res$estimate);
+  atacVSnet[i,8] <- round(n1*n2/N);
+}
+colnames(atacVSnet) <- c("geneSymbol", "N_total", "N_ATAC", "N_scMINER", "N_Overlap", "Pval", "OddsRatio", "Expectation")
+head(atacVSnet)
+```
+
+
+```{r, fig.width=8, fig.height=6}
+p <- ggplot(atacVSnet, aes(x=log10(Expectation + 1), y=log10(N_Overlap + 1), color = -log(Pval, base = 10))) + 
+  geom_point(size = 3, alpha=0.7, stroke = F) + 
+  xlab("Random predictor\nlog(# expected targets)") + 
+  ylab(paste0(network_type,"\nlog(# true positive targets)")) + 
+  theme_linedraw(base_size = 16) + 
+  geom_abline(slope=1) +
+  scale_color_gradient2(low="gray", mid = "red", high="red", midpoint = 10) +
+  xlim(-1,2.1) + ylim(-1,2.1) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        aspect.ratio = 1) + 
+  labs(colour="-log(P-value)") + 
+  ggtitle(paste0(cell_type, ", Fisher's test using ATAC data"))
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.png"))
+png(save_file, height=6, width=8, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.pdf"))
+pdf(save_file, height=6, width=8)
+print(p)
+dev.off()
+```
+
+
+```{r}
+cell_type = "Tpex"
+network_type = "scMINER"
+net_regulons = TEX_prog_SJ_regulons
+ATAC_regulons = TEX_prog_ATAC_regulons
+```
+
+
+```{r}
+overlap = intersect(names(net_regulons), names(ATAC_regulons))
+```
+
+
+```{r}
+N = 25000
+atacVSnet <- data.frame()
+for (i in 1:length(overlap)) {
+  gene = overlap[i]
+  ATAC_targets = ATAC_regulons[[gene]]
+  net_targets = net_regulons[[gene]]
+  ATAC_in_net <- ATAC_targets[ATAC_targets %in% net_targets]
+  n1 <- length(ATAC_targets); n2 <- length(net_targets); n3 <- length(ATAC_in_net)
+  res <- fisher.test(matrix(c((N-n1-n2+n3),(n1-n3),(n2-n3),n3), nrow = 2, byrow = T))
+  atacVSnet[i,1] <- gene;
+  atacVSnet[i,2] <- N;
+  atacVSnet[i,3] <- n1;
+  atacVSnet[i,4] <- n2;
+  atacVSnet[i,5] <- n3;
+  atacVSnet[i,6] <- as.numeric(res$p.value);
+  atacVSnet[i,7] <- as.numeric(res$estimate);
+  atacVSnet[i,8] <- round(n1*n2/N);
+}
+colnames(atacVSnet) <- c("geneSymbol", "N_total", "N_ATAC", "N_scMINER", "N_Overlap", "Pval", "OddsRatio", "Expectation")
+head(atacVSnet)
+```
+
+
+```{r, fig.width=8, fig.height=6}
+p <- ggplot(atacVSnet, aes(x=log10(Expectation + 1), y=log10(N_Overlap + 1), color = -log(Pval, base = 10))) + 
+  geom_point(size = 3, alpha=0.7, stroke = F) + 
+  xlab("Random predictor\nlog(# expected targets)") + 
+  ylab(paste0(network_type,"\nlog(# true positive targets)")) + 
+  theme_linedraw(base_size = 16) + 
+  geom_abline(slope=1) +
+  scale_color_gradient2(low="gray", mid = "red", high="red", midpoint = 10) +
+  xlim(-1,2.1) + ylim(-1,2.1) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        aspect.ratio = 1) + 
+  labs(colour="-log(P-value)") + 
+  ggtitle(paste0(cell_type, ", Fisher's test using ATAC data"))
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.png"))
+png(save_file, height=6, width=8, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.pdf"))
+pdf(save_file, height=6, width=8)
+print(p)
+dev.off()
+```
+
+
+```{r}
+cell_type = "Tex"
+network_type = "scMINER"
+net_regulons = TEX_term_SJ_regulons
+ATAC_regulons = TEX_term_ATAC_regulons
+```
+
+
+```{r}
+overlap = intersect(names(net_regulons), names(ATAC_regulons))
+```
+
+
+```{r}
+N = 25000
+atacVSnet <- data.frame()
+for (i in 1:length(overlap)) {
+  gene = overlap[i]
+  ATAC_targets = ATAC_regulons[[gene]]
+  net_targets = net_regulons[[gene]]
+  ATAC_in_net <- ATAC_targets[ATAC_targets %in% net_targets]
+  n1 <- length(ATAC_targets); n2 <- length(net_targets); n3 <- length(ATAC_in_net)
+  res <- fisher.test(matrix(c((N-n1-n2+n3),(n1-n3),(n2-n3),n3), nrow = 2, byrow = T))
+  atacVSnet[i,1] <- gene;
+  atacVSnet[i,2] <- N;
+  atacVSnet[i,3] <- n1;
+  atacVSnet[i,4] <- n2;
+  atacVSnet[i,5] <- n3;
+  atacVSnet[i,6] <- as.numeric(res$p.value);
+  atacVSnet[i,7] <- as.numeric(res$estimate);
+  atacVSnet[i,8] <- round(n1*n2/N);
+}
+colnames(atacVSnet) <- c("geneSymbol", "N_total", "N_ATAC", "N_scMINER", "N_Overlap", "Pval", "OddsRatio", "Expectation")
+head(atacVSnet)
+```
+
+
+```{r, fig.width=8, fig.height=6}
+p <- ggplot(atacVSnet, aes(x=log10(Expectation + 1), y=log10(N_Overlap + 1), color = -log(Pval, base = 10))) + 
+  geom_point(size = 3, alpha=0.7, stroke = F) + 
+  xlab("Random predictor\nlog(# expected targets)") + 
+  ylab(paste0(network_type,"\nlog(# true positive targets)")) + 
+  theme_linedraw(base_size = 16) + 
+  geom_abline(slope=1) +
+  scale_color_gradient2(low="gray", mid = "red", high="red", midpoint = 12) +
+  xlim(-1,2.1) + ylim(-1,2.1) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        aspect.ratio = 1) + 
+  labs(colour="-log(P-value)") + 
+  ggtitle(paste0(cell_type, ", Fisher's test using ATAC data"))
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.png"))
+png(save_file, height=6, width=8, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.pdf"))
+pdf(save_file, height=6, width=8)
+print(p)
+dev.off()
+```
+
+
+```{r}
+cell_type = "Tregs Spleen"
+network_type = "scMINER"
+net_regulons = Tregs_Spleen_SJ_regulons
+ATAC_regulons = Tregs_Spleen_ATAC_regulons
+```
+
+
+```{r}
+overlap = intersect(names(net_regulons), names(ATAC_regulons))
+```
+
+
+```{r}
+N = 25000
+atacVSnet <- data.frame()
+for (i in 1:length(overlap)) {
+  gene = overlap[i]
+  ATAC_targets = ATAC_regulons[[gene]]
+  net_targets = net_regulons[[gene]]
+  ATAC_in_net <- ATAC_targets[ATAC_targets %in% net_targets]
+  n1 <- length(ATAC_targets); n2 <- length(net_targets); n3 <- length(ATAC_in_net)
+  res <- fisher.test(matrix(c((N-n1-n2+n3),(n1-n3),(n2-n3),n3), nrow = 2, byrow = T))
+  atacVSnet[i,1] <- gene;
+  atacVSnet[i,2] <- N;
+  atacVSnet[i,3] <- n1;
+  atacVSnet[i,4] <- n2;
+  atacVSnet[i,5] <- n3;
+  atacVSnet[i,6] <- as.numeric(res$p.value);
+  atacVSnet[i,7] <- as.numeric(res$estimate);
+  atacVSnet[i,8] <- round(n1*n2/N);
+}
+colnames(atacVSnet) <- c("geneSymbol", "N_total", "N_ATAC", "N_scMINER", "N_Overlap", "Pval", "OddsRatio", "Expectation")
+head(atacVSnet)
+```
+
+
+```{r, fig.width=8, fig.height=6}
+p <- ggplot(atacVSnet, aes(x=log10(Expectation + 1), y=log10(N_Overlap + 1), color = -log(Pval, base = 10))) + 
+  geom_point(size = 3, alpha=0.7, stroke = F) + 
+  xlab("Random predictor\nlog(# expected targets)") + 
+  ylab(paste0(network_type,"\nlog(# true positive targets)")) + 
+  theme_linedraw(base_size = 16) + 
+  geom_abline(slope=1) +
+  scale_color_gradient2(low="gray", mid = "red", high="red", midpoint = 25) +
+  xlim(-1,2.1) + ylim(-1,2.1) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        aspect.ratio = 1) + 
+  labs(colour="-log(P-value)") + 
+  ggtitle(paste0(cell_type, ", Fisher's test using ATAC data"))
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.png"))
+png(save_file, height=6, width=8, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.pdf"))
+pdf(save_file, height=6, width=8)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+cell_type = "Tregs VAT"
+network_type = "scMINER"
+net_regulons = Tregs_VAT_SJ_regulons
+ATAC_regulons = Tregs_VAT_ATAC_regulons
+```
+
+
+```{r}
+overlap = intersect(names(net_regulons), names(ATAC_regulons))
+```
+
+
+```{r}
+N = 25000
+atacVSnet <- data.frame()
+for (i in 1:length(overlap)) {
+  gene = overlap[i]
+  ATAC_targets = ATAC_regulons[[gene]]
+  net_targets = net_regulons[[gene]]
+  ATAC_in_net <- ATAC_targets[ATAC_targets %in% net_targets]
+  n1 <- length(ATAC_targets); n2 <- length(net_targets); n3 <- length(ATAC_in_net)
+  res <- fisher.test(matrix(c((N-n1-n2+n3),(n1-n3),(n2-n3),n3), nrow = 2, byrow = T))
+  atacVSnet[i,1] <- gene;
+  atacVSnet[i,2] <- N;
+  atacVSnet[i,3] <- n1;
+  atacVSnet[i,4] <- n2;
+  atacVSnet[i,5] <- n3;
+  atacVSnet[i,6] <- as.numeric(res$p.value);
+  atacVSnet[i,7] <- as.numeric(res$estimate);
+  atacVSnet[i,8] <- round(n1*n2/N);
+}
+colnames(atacVSnet) <- c("geneSymbol", "N_total", "N_ATAC", "N_scMINER", "N_Overlap", "Pval", "OddsRatio", "Expectation")
+head(atacVSnet)
+```
+
+
+```{r, fig.width=8, fig.height=6}
+p <- ggplot(atacVSnet, aes(x=log10(Expectation + 1), y=log10(N_Overlap + 1), color = -log(Pval, base = 10))) + 
+  geom_point(size = 3, alpha=0.7, stroke = F) + 
+  xlab("Random predictor\nlog(# expected targets)") + 
+  ylab(paste0(network_type,"\nlog(# true positive targets)")) + 
+  theme_linedraw(base_size = 16) + 
+  geom_abline(slope=1) +
+  scale_color_gradient2(low="gray", mid = "red", high="red", midpoint = 15) +
+  xlim(-1,2.1) + ylim(-1,2.1) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        aspect.ratio = 1) + 
+  labs(colour="-log(P-value)") + 
+  ggtitle(paste0(cell_type, ", Fisher's test using ATAC data"))
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.png"))
+png(save_file, height=6, width=8, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0(cell_type, "_", network_type, "_vs_ATAC.pdf"))
+pdf(save_file, height=6, width=8)
+print(p)
+dev.off()
+```
+
+

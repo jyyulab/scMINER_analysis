@@ -1,0 +1,85 @@
+---
+title: "DE_compute"
+output: html_document
+date: "2024-06-04"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+```
+
+
+```{r}
+sce_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/sce_filt_results_proc.Rdata"
+load(sce_inp_file)
+filt_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/filt_targets_results.Rdata"
+load(filt_inp_file)
+```
+
+
+```{r}
+sce3_filt
+```
+
+
+```{r}
+i = 10
+target = sel_tar_per_sample$GSM6858449$NT[i]
+ids = (colData(sce3_filt)$Guides_collapsed_by_gene == "non-targeting") | (colData(sce3_filt)$Guides_collapsed_by_gene == target)
+sce = sce3_filt[,ids]
+grp = 1:dim(sce)[2]
+grp[colData(sce)$Guides_collapsed_by_gene == "non-targeting"] = "NT"
+grp[colData(sce)$Guides_collapsed_by_gene == target] = target
+markers <- findMarkers(sce, groups = grp)
+```
+
+
+```{r}
+targets = sel_tar_per_sample$GSM6858449$NT
+DE_res = lapply(targets, function(target) {
+  ids = (colData(sce3_filt)$Guides_collapsed_by_gene == "non-targeting") | (colData(sce3_filt)$Guides_collapsed_by_gene == target);
+  sce = sce3_filt[,ids];
+  grp = 1:dim(sce)[2];
+  grp[colData(sce)$Guides_collapsed_by_gene == "non-targeting"] = "NT";
+  grp[colData(sce)$Guides_collapsed_by_gene == target] = target;
+  markers <- findMarkers(sce, groups = grp);
+  return(markers)})
+names(DE_res) <- targets
+```
+
+
+```{r}
+save_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data"
+save_file = file.path(save_fold, "DE_res_GSM6858449_NT.Rdata")
+save(DE_res, file = save_file)
+```
+
+
+
+

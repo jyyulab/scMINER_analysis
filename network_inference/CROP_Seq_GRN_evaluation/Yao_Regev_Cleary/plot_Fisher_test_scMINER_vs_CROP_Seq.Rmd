@@ -1,0 +1,155 @@
+---
+title: "Fisher_test_scMINER_vs_CROP_Seq"
+output: html_document
+date: "2024-08-02"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pROC)
+library(gsubfn)
+library(PRROC)
+```
+
+
+```{r}
+save_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/results/Fisher_test"
+dir.create(save_fold)
+```
+
+
+```{r}
+inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/DE_res_GSM6858449_NT.Rdata"
+load(inp_file)
+```
+
+
+```{r}
+net_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_SIG_net.Rdata"
+load(net_file)
+```
+
+```{r}
+net = net3_SJ_NT_SIG_edges_MI
+```
+
+```{r}
+overlap = intersect(names(DE_res), unique(net$source))
+```
+
+```{r}
+logFC_th = 0.25
+CROP_regulons = lapply(overlap, function(gene) {ids = abs(DE_res[[gene]][[gene]]$logFC.NT) > logFC_th;
+  targets = rownames(DE_res[[gene]][[gene]])[ids];
+  return(targets)
+  })
+names(CROP_regulons) <- overlap
+```
+
+
+```{r}
+SJ_regulons = lapply(overlap, function(gene) net$target[net$source == gene])
+names(SJ_regulons) <- overlap
+```
+
+
+```{r}
+N = length(unique(c(unname(unlist(CROP_regulons)), unname(unlist(SJ_regulons)))))
+N = length(unique( c(net$source, net$target, names(DE_res), unlist(lapply(names(DE_res), function(gene) rownames(DE_res[[gene]][[gene]]))))))
+N = 25000
+cropVSscminer <- data.frame()
+for (i in 1:length(overlap)) {
+  gene = overlap[i]
+  CROP_targets = CROP_regulons[[gene]]
+  SJ_targets = SJ_regulons[[gene]]
+  CROP_in_SJ <- CROP_targets[CROP_targets %in% SJ_targets]
+  n1 <- length(CROP_targets); n2 <- length(SJ_targets); n3 <- length(CROP_in_SJ)
+  res <- fisher.test(matrix(c((N-n1-n2+n3),(n1-n3),(n2-n3),n3), nrow = 2, byrow = T))
+  cropVSscminer[i,1] <- gene;
+  cropVSscminer[i,2] <- N;
+  cropVSscminer[i,3] <- n1;
+  cropVSscminer[i,4] <- n2;
+  cropVSscminer[i,5] <- n3;
+  cropVSscminer[i,6] <- as.numeric(res$p.value);
+  cropVSscminer[i,7] <- as.numeric(res$estimate);
+  cropVSscminer[i,8] <- round(n1*n2/N);
+}
+colnames(cropVSscminer) <- c("geneSymbol", "N_total", "N_ATAC", "N_scMINER", "N_Overlap", "Pval", "OddsRatio", "Expectation")
+head(cropVSscminer)
+```
+
+```{r, fig.width=8, fig.height=6}
+p <- ggplot(cropVSscminer, aes(x=log10(Expectation + 1), y=log10(N_Overlap + 1), color = -log(Pval, base = 10))) + 
+  geom_point(size = 3, alpha=0.7, stroke = F) + 
+  xlab("Random predictor\nlog(# expected targets)") + 
+  ylab("scMINER\nlog(# true positive targets)") + 
+  theme_linedraw(base_size = 16) + 
+  geom_abline(slope=1) +
+  scale_color_gradient2(low="gray", mid = "red", high="red", midpoint = 20) +
+  xlim(-1,2.1) + ylim(-1,2.1) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        aspect.ratio = 1) + 
+  labs(colour="-log(P-value)") + 
+  ggtitle("Fisher's test (using CROP-Seq data)")
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, "scMINER_vs_CROP_Seq.png")
+png(save_file, height=6, width=8, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, "scMINER_vs_CROP_Seq.pdf")
+pdf(save_file, height=6, width=8)
+print(p)
+dev.off()
+```
+
+
+```{r}
+reg_size_SJ = sapply(overlap, function(gene) length(SJ_regulons[[gene]]))
+reg_size_CROP = sapply(overlap, function(gene) length(CROP_regulons[[gene]]))
+
+df = data.frame(SJ = reg_size_SJ, CROP = reg_size_CROP)
+
+p <- ggplot(df, aes(x = "CROP", y = "SJ")) + geom_point()
+
+sp <- ggscatter(df, x = "CROP", y = "SJ",
+   add = "reg.line",
+   add.params = list(color = "blue", fill = "lightgray"),
+   conf.int = TRUE)
+
+# Add correlation coefficient
+sp + stat_cor(method = "pearson", label.x = 3, label.y = 30)
+```

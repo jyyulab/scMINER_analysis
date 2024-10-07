@@ -1,0 +1,1674 @@
+  ---
+title: "plot_GSEA"
+output: html_document
+date: "2024-06-04"
+---
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+library(cowplot)
+library(ggpmisc)
+#display.brewer.all()
+```
+
+
+```{r}
+sce_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/sce_filt_results_proc.Rdata"
+load(sce_inp_file)
+filt_inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/filt_targets_results.Rdata"
+load(filt_inp_file)
+```
+
+
+```{r}
+sample1 = colData(sce1_filt)$sample[1]
+sample2 = colData(sce2_filt)$sample[1]
+sample3 = colData(sce3_filt)$sample[1]
+sample4 = colData(sce4_filt)$sample[1]
+```
+
+
+```{r}
+pv = 0.001
+ref_type = "NT"
+inp_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data"
+save_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/results"
+options(scipen = 100, digits = 20)
+inp_tf_file = file.path(inp_fold, paste0(ref_type, "_TF_GSEA.Rdata"))
+load(inp_tf_file)
+inp_sig_file = file.path(inp_fold, paste0(ref_type, "_SIG_GSEA.Rdata"))
+load(inp_sig_file)
+#GSEA_scMINER_SIG
+GSEA_scMINER_TF = GSEA_scMINER
+```
+
+
+```{r}
+lfc_data = list()
+for (smpl in names(lfc_all)){
+  lfc_data[[smpl]] = list()
+  for (target in names(lfc_all[[smpl]][[ref_type]])){
+    lfc = lfc_all[[smpl]][[ref_type]][[target]]$logFC
+    names(lfc) = lfc_all[[smpl]][[ref_type]][[target]]$gene
+    lfc = sort(lfc, decreasing = TRUE)
+    df = data.frame(logFC = lfc)
+    rownames(df) = names(lfc)
+    lfc_data[[smpl]][[target]] = df
+  }
+}
+```
+
+
+```{r}
+TF_targets1 = names(GSEA_scMINER_TF[[sample1]])
+TF_targets2 = names(GSEA_scMINER_TF[[sample2]])
+TF_targets3 = names(GSEA_scMINER_TF[[sample3]])
+TF_targets4 = names(GSEA_scMINER_TF[[sample4]])
+
+SIG_targets1 = names(GSEA_scMINER_SIG[[sample1]])
+SIG_targets2 = names(GSEA_scMINER_SIG[[sample2]])
+SIG_targets3 = names(GSEA_scMINER_SIG[[sample3]])
+SIG_targets4 = names(GSEA_scMINER_SIG[[sample4]])
+```
+
+
+```{r}
+pv_scMINER_fm <- sapply(TF_targets1, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample1]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample1]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets1, function(gene) GSEA_GRNB2[[sample1]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets1, function(gene) GSEA_GN3[[sample1]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets1, function(gene) GSEA_PIDC[[sample1]][[gene]]$all$ks_pv)
+pv_ks1 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks1) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks1 <- -log(pv_ks1, base = 10)
+
+pv_scMINER_fm <- sapply(TF_targets2, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample2]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample2]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets2, function(gene) GSEA_GRNB2[[sample2]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets2, function(gene) GSEA_GN3[[sample2]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets2, function(gene) GSEA_PIDC[[sample2]][[gene]]$all$ks_pv)
+pv_ks2 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks2) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks2 <- -log(pv_ks2, base = 10)
+
+pv_scMINER_fm <- sapply(TF_targets3, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample3]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample3]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets3, function(gene) GSEA_GRNB2[[sample3]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets3, function(gene) GSEA_GN3[[sample3]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets3, function(gene) GSEA_PIDC[[sample3]][[gene]]$all$ks_pv)
+pv_ks3 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks3) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks3 <- -log(pv_ks3, base = 10)
+
+pv_scMINER_fm <- sapply(TF_targets4, function(gene) 
+  ifelse(is.null(GSEA_scMINER_TF[[sample4]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_TF[[sample4]][[gene]]$all$fisher_pv))
+pv_GRNB2 <- sapply(TF_targets4, function(gene) GSEA_GRNB2[[sample4]][[gene]]$all$ks_pv)
+pv_GN3 <- sapply(TF_targets4, function(gene) GSEA_GN3[[sample4]][[gene]]$all$ks_pv)
+pv_PIDC <- sapply(TF_targets4, function(gene) GSEA_PIDC[[sample4]][[gene]]$all$ks_pv)
+pv_ks4 <- as.data.frame(Reduce(cbind, list(pv_scMINER_fm, pv_GRNB2, pv_GN3, pv_PIDC)))
+colnames(pv_ks4) <- c("scMINER",  "GRNBoost2", "GENIE3", "PIDC")
+pv_ks4 <- -log(pv_ks4, base = 10)
+```
+
+
+```{r, fig.width = 5, fig.height = 6}
+data <- pv_ks3
+data = data[rowSums(is.na(data)) == 0,]
+
+df = as.data.frame(t(sapply(1:4, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER", "GRNBoost2", "GENIE3", "PIDC"), levels = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(0, 1, 2, 3, 4, 5)*bar_inc
+stat.test <- stat.test[1:3,]
+
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  #theme_linedraw(base_size = 16) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Method',
+                    values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("-log(P-value)") + 
+  ggtitle(paste0("GSEA, KS test, ", "TF")) + theme(legend.position = "none") + 
+  scale_x_discrete(guide = guide_axis(angle = 45))
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_pv_barplot", ".png"))
+png(save_file, height=6, width=5, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_pv_barplot", ".pdf"))
+pdf(save_file, height=6, width=5)
+p
+dev.off()
+```
+
+
+
+
+```{r}
+library("EnrichIntersect")
+
+ES_scMINER_pos <- sapply(TF_targets1, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample1]][[gene]]$pos$RES), NA, GSEA_scMINER_TF[[sample1]][[gene]]$pos$RES))
+ES_scMINER_neg <- sapply(TF_targets1, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample1]][[gene]]$neg$ES), NA, GSEA_scMINER_TF[[sample1]][[gene]]$neg$ES))
+ES_GRNB2 <- sapply(TF_targets1, function(gene) GSEA_GRNB2[[sample1]][[gene]]$all$ES)
+ES_GN3 <- sapply(TF_targets1, function(gene) GSEA_GN3[[sample1]][[gene]]$all$ES)
+ES_PIDC <- sapply(TF_targets1, function(gene) GSEA_PIDC[[sample1]][[gene]]$all$ES)
+ES1 <- as.data.frame(Reduce(cbind, list(ES_scMINER_pos, ES_scMINER_neg, ES_GRNB2, ES_GN3, ES_PIDC)))
+colnames(ES1) <- c("scMINER_pos", "scMINER_neg", "GRNBoost2", "GENIE3", "PIDC")
+
+
+ES_scMINER_pos <- sapply(TF_targets2, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample2]][[gene]]$pos$ES), NA, GSEA_scMINER_TF[[sample2]][[gene]]$pos$ES))
+ES_scMINER_neg <- sapply(TF_targets2, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample2]][[gene]]$neg$ES), NA, GSEA_scMINER_TF[[sample2]][[gene]]$neg$ES))
+ES_GRNB2 <- sapply(TF_targets2, function(gene) GSEA_GRNB2[[sample2]][[gene]]$all$ES)
+ES_GN3 <- sapply(TF_targets2, function(gene) GSEA_GN3[[sample2]][[gene]]$all$ES)
+ES_PIDC <- sapply(TF_targets2, function(gene) GSEA_PIDC[[sample2]][[gene]]$all$ES)
+ES2 <- as.data.frame(Reduce(cbind, list(ES_scMINER_pos, ES_scMINER_neg, ES_GRNB2, ES_GN3, ES_PIDC)))
+colnames(ES2) <- c("scMINER_pos", "scMINER_neg", "GRNBoost2", "GENIE3", "PIDC")
+
+
+ES_scMINER_pos <- sapply(TF_targets3, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample3]][[gene]]$pos$ES), NA, GSEA_scMINER_TF[[sample3]][[gene]]$pos$ES))
+ES_scMINER_neg <- sapply(TF_targets3, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample3]][[gene]]$neg$ES), NA, GSEA_scMINER_TF[[sample3]][[gene]]$neg$ES))
+ES_GRNB2 <- sapply(TF_targets3, function(gene) GSEA_GRNB2[[sample3]][[gene]]$all$ES)
+ES_GN3 <- sapply(TF_targets3, function(gene) GSEA_GN3[[sample3]][[gene]]$all$ES)
+ES_PIDC <- sapply(TF_targets3, function(gene) GSEA_PIDC[[sample3]][[gene]]$all$ES)
+ES3 <- as.data.frame(Reduce(cbind, list(ES_scMINER_pos, ES_scMINER_neg, ES_GRNB2, ES_GN3, ES_PIDC)))
+colnames(ES3) <- c("scMINER_pos", "scMINER_neg", "GRNBoost2", "GENIE3", "PIDC")
+
+
+ES_scMINER_pos <- sapply(TF_targets4, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample4]][[gene]]$pos$ES), NA, GSEA_scMINER_TF[[sample4]][[gene]]$pos$ES))
+ES_scMINER_neg <- sapply(TF_targets4, function(gene) 
+                          ifelse(is.null(GSEA_scMINER_TF[[sample4]][[gene]]$neg$ES), NA, GSEA_scMINER_TF[[sample4]][[gene]]$neg$ES))
+ES_GRNB2 <- sapply(TF_targets4, function(gene) GSEA_GRNB2[[sample4]][[gene]]$all$ES)
+ES_GN3 <- sapply(TF_targets4, function(gene) GSEA_GN3[[sample4]][[gene]]$all$ES)
+ES_PIDC <- sapply(TF_targets4, function(gene) GSEA_PIDC[[sample4]][[gene]]$all$ES)
+ES3 <- as.data.frame(Reduce(cbind, list(ES_scMINER_pos, ES_scMINER_neg, ES_GRNB2, ES_GN3, ES_PIDC)))
+colnames(ES3) <- c("scMINER_pos", "scMINER_neg", "GRNBoost2", "GENIE3", "PIDC")
+```
+
+
+
+
+```{r, fig.width = 5, fig.height = 6}
+options(scipen = 100, digits = 2)
+
+data <- abs(ES3)
+data = data[rowSums(is.na(data)) == 0,]
+
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER_pos", "scMINER_neg", "GRNBoost2", "GENIE3", "PIDC"), levels = c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(-1, 0, 1, 2, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[-c(1, 8, 9, 10), ]
+
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  #theme_linedraw(base_size = 16) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Method',
+                    values = c("scMINER_pos" = "red", "scMINER_neg" = "navy", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("-log(P-value)") + 
+  ggtitle(paste0("GSEA, KS test, ", "TF")) + theme(legend.position = "none") + 
+  scale_x_discrete(guide = guide_axis(angle = 45))
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_ES_barplot", ".png"))
+png(save_file, height=6, width=5, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_ES_barplot", ".pdf"))
+pdf(save_file, height=6, width=5)
+p
+dev.off()
+```
+
+
+
+```{r}
+thr = 3
+data <- pv_ks3
+data = data[rowSums(is.na(data)) == 0,]
+data$target <- rownames(data)
+ids <- (data$scMINER >= thr) | (data$GRNBoost2 >= thr) | (data$GENIE3 >= thr) | (data$PIDC >= thr)
+data <- data[ids,]
+srt = sort(data$scMINER, decreasing = TRUE, index.return = TRUE)
+data = data[srt$ix,]
+data <- data[1:25,]
+```
+
+
+```{r, fig.width=3, fig.height=5}
+df <- melt(data, id = c("target"))
+colnames(df) <- c("target", "method", "value")
+srt = sort(data$scMINER, decreasing = FALSE, index.return = TRUE)
+df$target = factor(df$target, levels = data$target[srt$ix])
+p <- ggplot(df, aes(x = method, y = target, fill = value)) +
+  geom_tile() + scale_fill_gradient2(low="white", high="red") +
+  geom_text(aes(label = round(value,2)), color = "black", size = 3) +
+  theme_classic() + ggtitle(paste0("TF network, GSEA KS P-value")) + 
+  labs(fill="-log(P-value)") + #xlab("Model") + ylab("TF") +
+  xlab("") + ylab("") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme(legend.position = "none", axis.text.x=element_text(size=10),
+        title = element_text(size=9))
+p
+```
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_pv_heatmap", ".png"))
+png(save_file, height=5, width=3, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_pv_heatmap", ".pdf"))
+pdf(file = save_file, height=5, width=3)
+print(p)
+dev.off()
+```
+
+
+```{r}
+smpl = sample3
+gene = "EGR2"
+rank_profile = GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_TF[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_TF[[smpl]][[gene]]$neg$RES,
+                 GRNBoost2 = GSEA_GRNB2[[smpl]][[gene]]$all$RES,
+                 GENIE3 = GSEA_GN3[[smpl]][[gene]]$all$RES,
+                 PIDC = GSEA_PIDC[[smpl]][[gene]]$all$RES, 
+                 pos = 1:length(GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_TF[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_TF[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_TF[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_TF[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+
+ids = which(GSEA_GRNB2[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GRNB2[[smpl]][[gene]]$all$RES[ids])
+data_GRNB2 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_GN3[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GN3[[smpl]][[gene]]$all$RES[ids])
+data_GN3 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_PIDC[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_PIDC[[smpl]][[gene]]$all$RES[ids])
+data_PIDC <- data.frame(x = ids, ES = ES)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+y_pos = min(df$scMINER_pos)
+x_pos = which(df$scMINER_pos == min(df$scMINER_pos))
+
+y_neg = max(df$scMINER_neg)
+x_neg = which(df$scMINER_neg == max(df$scMINER_neg))
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_x_continuous(expand = expansion(mult = 0.1)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) +
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) +
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_TF[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_TF[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_TF[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_TF[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("GRNBoost2" = "blue", "GENIE3" = "green", "PIDC" = "sandybrown")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1_true = min(df[,c(4,5,6)])
+y2_true = max(df[,c(4,5,6)])
+y1 = min(df[,c(4,5,6)]) - 0.05*(max(df[,c(4,5,6)])-min(df[,c(4,5,6)]))
+y2 = max(df[,c(4,5,6)]) + 0.05*(max(df[,c(4,5,6)])-min(df[,c(4,5,6)]))
+
+x_grnb_min = which(df$GRNBoost2 == min(df$GRNBoost2))
+y_grnb_min = min(df$GRNBoost2)
+
+x_grnb_max = which(df$GRNBoost2 == max(df$GRNBoost2))
+y_grnb_max = max(df$GRNBoost2)
+
+
+x_gn3_min = which(df$GENIE3 == min(df$GENIE3))
+y_gn3_min = min(df$GENIE3)
+
+x_gn3_max = which(df$GENIE3 == max(df$GENIE3))
+y_gn3_max = max(df$GENIE3)
+
+
+x_pidc_min = which(df$PIDC == min(df$PIDC))
+y_pidc_min = min(df$PIDC)
+
+x_pidc_max = which(df$PIDC == max(df$PIDC))
+y_pidc_max = max(df$PIDC)
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_grnb_min, y = y_grnb_min, yend = y_grnb_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_grnb_min, xend = x_grnb_min, y = 0, yend = y_grnb_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_grnb_max, y = y_grnb_max, yend = y_grnb_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_grnb_max, xend = x_grnb_max, y = 0, yend = y_grnb_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_gn3_min, y = y_gn3_min, yend = y_gn3_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_gn3_min, xend = x_gn3_min, y = 0, yend = y_gn3_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_gn3_max, y = y_gn3_max, yend = y_gn3_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_gn3_max, xend = x_gn3_max, y = 0, yend = y_gn3_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_pidc_min, y = y_pidc_min, yend = y_pidc_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pidc_min, xend = x_pidc_min, y = 0, yend = y_pidc_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_pidc_max, y = y_pidc_max, yend = y_pidc_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pidc_max, xend = x_pidc_max, y = 0, yend = y_pidc_max), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=GRNBoost2, color = "GRNBoost2"), size = 2) + 
+  geom_line(aes(y=GENIE3, color = "GENIE3"), size = 2) + 
+  geom_line(aes(y=PIDC, color = "PIDC"), size = 2) + 
+  geom_point(x = x_grnb_min, y = y_grnb_min, colour = "black", size = 2) + 
+  geom_point(x = x_grnb_max, y = y_grnb_max, colour = "black", size = 2) + 
+  geom_point(x = x_gn3_min, y = y_gn3_min, colour = "black", size = 2) + 
+  geom_point(x = x_gn3_max, y = y_gn3_max, colour = "black", size = 2) + 
+  geom_point(x = x_pidc_min, y = y_pidc_min, colour = "black", size = 2) + 
+  geom_point(x = x_pidc_max, y = y_pidc_max, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y1_true, hjust = 1, label = round(y1_true,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y2_true, hjust = 1, label = round(y2_true,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_x_continuous(expand = expansion(mult = 0.1)) +
+  labs(color = "Mothod") + scale_color_manual(values = colors) + 
+  ggtitle(paste0("        ", gene, " knockdown, alternative methods")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_GRNB2, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "blue") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) +
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_GN3, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "green") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) +
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p4 <- ggplot() + 
+  geom_segment(data = data_PIDC, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "sandybrown") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) +
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, p4, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.021 + 0.045*2, hjust = 1, label = "GRNBoost2", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.021 + 0.045, hjust = 1, label = "GENIE3", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.021, hjust = 1, label = "PIDC", color = "black", size = 5)
+
+
+ES_grnb = as.character(round(GSEA_GRNB2[[smpl]][[gene]]$all$ES, 3))
+pv_grnb = formatC(GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+ES_gn3 = as.character(round(GSEA_GN3[[smpl]][[gene]]$all$ES, 3))
+pv_gn3 = formatC(GSEA_GN3[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+ES_pidc = as.character(round(GSEA_PIDC[[smpl]][[gene]]$all$ES, 3))
+pv_pidc = formatC(GSEA_PIDC[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.12
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_grnb, color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_gn3, color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 3*y_delta, hjust = 0, label = ES_pidc, color = "sandybrown", size = 5)
+
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_grnb, color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_gn3, color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 3*y_delta, hjust = 0, label = pv_pidc, color = "sandybrown", size = 5)
+
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_alternative_methods.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_alternative_methods.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+```{r}
+smpl = sample3
+gene = "JUN"
+rank_profile = GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_TF[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_TF[[smpl]][[gene]]$neg$RES,
+                 GRNBoost2 = GSEA_GRNB2[[smpl]][[gene]]$all$RES,
+                 GENIE3 = GSEA_GN3[[smpl]][[gene]]$all$RES,
+                 PIDC = GSEA_PIDC[[smpl]][[gene]]$all$RES, 
+                 pos = 1:length(GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_TF[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_TF[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_TF[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_TF[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+
+ids = which(GSEA_GRNB2[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GRNB2[[smpl]][[gene]]$all$RES[ids])
+data_GRNB2 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_GN3[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GN3[[smpl]][[gene]]$all$RES[ids])
+data_GN3 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_PIDC[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_PIDC[[smpl]][[gene]]$all$RES[ids])
+data_PIDC <- data.frame(x = ids, ES = ES)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+y_pos = min(df$scMINER_pos)
+x_pos = which(df$scMINER_pos == min(df$scMINER_pos))
+
+y_neg = max(df$scMINER_neg)
+x_neg = which(df$scMINER_neg == max(df$scMINER_neg))
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), legend.position = "top",
+        axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_TF[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_TF[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_TF[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_TF[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("GRNBoost2" = "blue", "GENIE3" = "green", "PIDC" = "sandybrown")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1_true = min(df[,c(4,5,6)])
+y2_true = max(df[,c(4,5,6)])
+y1 = min(df[,c(4,5,6)]) - 0.05*(max(df[,c(4,5,6)])-min(df[,c(4,5,6)]))
+y2 = max(df[,c(4,5,6)]) + 0.05*(max(df[,c(4,5,6)])-min(df[,c(4,5,6)]))
+
+x_grnb_min = which(df$GRNBoost2 == min(df$GRNBoost2))
+y_grnb_min = min(df$GRNBoost2)
+
+x_grnb_max = which(df$GRNBoost2 == max(df$GRNBoost2))
+y_grnb_max = max(df$GRNBoost2)
+
+
+x_gn3_min = which(df$GENIE3 == min(df$GENIE3))
+y_gn3_min = min(df$GENIE3)
+
+x_gn3_max = which(df$GENIE3 == max(df$GENIE3))
+y_gn3_max = max(df$GENIE3)
+
+
+x_pidc_min = which(df$PIDC == min(df$PIDC))
+y_pidc_min = min(df$PIDC)
+
+x_pidc_max = which(df$PIDC == max(df$PIDC))
+y_pidc_max = max(df$PIDC)
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_grnb_min, y = y_grnb_min, yend = y_grnb_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_grnb_min, xend = x_grnb_min, y = 0, yend = y_grnb_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_grnb_max, y = y_grnb_max, yend = y_grnb_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_grnb_max, xend = x_grnb_max, y = 0, yend = y_grnb_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_gn3_min, y = y_gn3_min, yend = y_gn3_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_gn3_min, xend = x_gn3_min, y = 0, yend = y_gn3_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_gn3_max, y = y_gn3_max, yend = y_gn3_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_gn3_max, xend = x_gn3_max, y = 0, yend = y_gn3_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_pidc_min, y = y_pidc_min, yend = y_pidc_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pidc_min, xend = x_pidc_min, y = 0, yend = y_pidc_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_pidc_max, y = y_pidc_max, yend = y_pidc_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pidc_max, xend = x_pidc_max, y = 0, yend = y_pidc_max), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=GRNBoost2, color = "GRNBoost2"), size = 2) + 
+  geom_line(aes(y=GENIE3, color = "GENIE3"), size = 2) + 
+  geom_line(aes(y=PIDC, color = "PIDC"), size = 2) + 
+  geom_point(x = x_grnb_min, y = y_grnb_min, colour = "black", size = 2) + 
+  geom_point(x = x_grnb_max, y = y_grnb_max, colour = "black", size = 2) + 
+  geom_point(x = x_gn3_min, y = y_gn3_min, colour = "black", size = 2) + 
+  geom_point(x = x_gn3_max, y = y_gn3_max, colour = "black", size = 2) + 
+  geom_point(x = x_pidc_min, y = y_pidc_min, colour = "black", size = 2) + 
+  geom_point(x = x_pidc_max, y = y_pidc_max, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y1_true, hjust = 1, label = round(y1_true,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y2_true, hjust = 1, label = round(y2_true,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), legend.position = "top",
+      axis.title.y=element_text(angle = 90, size = 25),
+        plot.title = element_text(size = 25)) +
+  labs(color = "Mothod") + scale_color_manual(values = colors) + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, alternative methods")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_GRNB2, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "blue") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_GN3, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "green") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p4 <- ggplot() + 
+  geom_segment(data = data_PIDC, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "sandybrown") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) +
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, p4, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.021 + 0.045*2, hjust = 1, label = "GRNBoost2", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.021 + 0.045, hjust = 1, label = "GENIE3", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.021, hjust = 1, label = "PIDC", color = "black", size = 5)
+
+
+ES_grnb = as.character(round(GSEA_GRNB2[[smpl]][[gene]]$all$ES, 3))
+pv_grnb = formatC(GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+ES_gn3 = as.character(round(GSEA_GN3[[smpl]][[gene]]$all$ES, 3))
+pv_gn3 = formatC(GSEA_GN3[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+ES_pidc = as.character(round(GSEA_PIDC[[smpl]][[gene]]$all$ES, 3))
+pv_pidc = formatC(GSEA_PIDC[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.12
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_grnb, color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_gn3, color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 3*y_delta, hjust = 0, label = ES_pidc, color = "sandybrown", size = 5)
+
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_grnb, color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_gn3, color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 3*y_delta, hjust = 0, label = pv_pidc, color = "sandybrown", size = 5)
+
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_alternative_methods.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_alternative_methods.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+```{r}
+smpl = sample3
+gene = "ZC3H13"
+rank_profile = GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_TF[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_TF[[smpl]][[gene]]$neg$RES,
+                 GRNBoost2 = GSEA_GRNB2[[smpl]][[gene]]$all$RES,
+                 GENIE3 = GSEA_GN3[[smpl]][[gene]]$all$RES,
+                 PIDC = GSEA_PIDC[[smpl]][[gene]]$all$RES, 
+                 pos = 1:length(GSEA_scMINER_TF[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_TF[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_TF[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_TF[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_TF[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+
+ids = which(GSEA_GRNB2[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GRNB2[[smpl]][[gene]]$all$RES[ids])
+data_GRNB2 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_GN3[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_GN3[[smpl]][[gene]]$all$RES[ids])
+data_GN3 <- data.frame(x = ids, ES = ES)
+
+ids = which(GSEA_PIDC[[smpl]][[gene]]$all$indicator == 1)
+ES = abs(GSEA_PIDC[[smpl]][[gene]]$all$RES[ids])
+data_PIDC <- data.frame(x = ids, ES = ES)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+y_pos = max(df$scMINER_pos)
+x_pos = which(df$scMINER_pos == max(df$scMINER_pos))
+
+y_neg = min(df$scMINER_neg)
+x_neg = which(df$scMINER_neg == min(df$scMINER_neg))
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), legend.position = "top",
+      axis.title.y=element_text(angle = 90, size = 25),
+      plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_TF[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_TF[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_TF[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_TF[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("GRNBoost2" = "blue", "GENIE3" = "green", "PIDC" = "sandybrown")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1_true = min(df[,c(4,5,6)])
+y2_true = max(df[,c(4,5,6)])
+y1 = min(df[,c(4,5,6)]) - 0.05*(max(df[,c(4,5,6)])-min(df[,c(4,5,6)]))
+y2 = max(df[,c(4,5,6)]) + 0.05*(max(df[,c(4,5,6)])-min(df[,c(4,5,6)]))
+
+x_grnb_min = which(df$GRNBoost2 == min(df$GRNBoost2))
+y_grnb_min = min(df$GRNBoost2)
+
+x_grnb_max = which(df$GRNBoost2 == max(df$GRNBoost2))
+y_grnb_max = max(df$GRNBoost2)
+
+
+x_gn3_min = which(df$GENIE3 == min(df$GENIE3))
+y_gn3_min = min(df$GENIE3)
+
+x_gn3_max = which(df$GENIE3 == max(df$GENIE3))
+y_gn3_max = max(df$GENIE3)
+
+
+x_pidc_min = which(df$PIDC == min(df$PIDC))
+y_pidc_min = min(df$PIDC)
+
+x_pidc_max = which(df$PIDC == max(df$PIDC))
+y_pidc_max = max(df$PIDC)
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_grnb_min, y = y_grnb_min, yend = y_grnb_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_grnb_min, xend = x_grnb_min, y = 0, yend = y_grnb_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_grnb_max, y = y_grnb_max, yend = y_grnb_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_grnb_max, xend = x_grnb_max, y = 0, yend = y_grnb_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_gn3_min, y = y_gn3_min, yend = y_gn3_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_gn3_min, xend = x_gn3_min, y = 0, yend = y_gn3_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_gn3_max, y = y_gn3_max, yend = y_gn3_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_gn3_max, xend = x_gn3_max, y = 0, yend = y_gn3_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_pidc_min, y = y_pidc_min, yend = y_pidc_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pidc_min, xend = x_pidc_min, y = 0, yend = y_pidc_min), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_pidc_max, y = y_pidc_max, yend = y_pidc_max), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pidc_max, xend = x_pidc_max, y = 0, yend = y_pidc_max), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=GRNBoost2, color = "GRNBoost2"), size = 2) + 
+  geom_line(aes(y=GENIE3, color = "GENIE3"), size = 2) + 
+  geom_line(aes(y=PIDC, color = "PIDC"), size = 2) + 
+  geom_point(x = x_grnb_min, y = y_grnb_min, colour = "black", size = 2) + 
+  geom_point(x = x_grnb_max, y = y_grnb_max, colour = "black", size = 2) + 
+  geom_point(x = x_gn3_min, y = y_gn3_min, colour = "black", size = 2) + 
+  geom_point(x = x_gn3_max, y = y_gn3_max, colour = "black", size = 2) + 
+  geom_point(x = x_pidc_min, y = y_pidc_min, colour = "black", size = 2) + 
+  geom_point(x = x_pidc_max, y = y_pidc_max, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y1_true, hjust = 1, label = round(y1_true,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y2_true, hjust = 1, label = round(y2_true,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), legend.position = "top",
+      axis.title.y=element_text(angle = 90, size = 25),
+      plot.title = element_text(size = 25)) +
+  labs(color = "Mothod") + scale_color_manual(values = colors) + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, alternative methods")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_GRNB2, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "blue") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_GN3, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "green") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p4 <- ggplot() + 
+  geom_segment(data = data_PIDC, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "sandybrown") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) +
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, p4, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.021 + 0.045*2, hjust = 1, label = "GRNBoost2", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.021 + 0.045, hjust = 1, label = "GENIE3", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.021, hjust = 1, label = "PIDC", color = "black", size = 5)
+
+
+ES_grnb = as.character(round(GSEA_GRNB2[[smpl]][[gene]]$all$ES, 3))
+pv_grnb = formatC(GSEA_GRNB2[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+ES_gn3 = as.character(round(GSEA_GN3[[smpl]][[gene]]$all$ES, 3))
+pv_gn3 = formatC(GSEA_GN3[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+ES_pidc = as.character(round(GSEA_PIDC[[smpl]][[gene]]$all$ES, 3))
+pv_pidc = formatC(GSEA_PIDC[[smpl]][[gene]]$all$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.12
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_grnb, color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_gn3, color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 3*y_delta, hjust = 0, label = ES_pidc, color = "sandybrown", size = 5)
+
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_grnb, color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_gn3, color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 3*y_delta, hjust = 0, label = pv_pidc, color = "sandybrown", size = 5)
+
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_alternative_methods.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_GSEA_", gene, "_alternative_methods.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+```{r}
+pv_SIG_pos <- sapply(SIG_targets3, function(gene) GSEA_scMINER_SIG[[sample3]][[gene]]$pos$ks_pv)
+pv_SIG_neg <- sapply(SIG_targets3, function(gene) GSEA_scMINER_SIG[[sample3]][[gene]]$neg$ks_pv)
+pv_SIG_fm <- sapply(SIG_targets3, function(gene) 
+  ifelse(is.null(GSEA_scMINER_SIG[[sample3]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_SIG[[sample3]][[gene]]$all$fisher_pv))
+
+ids = !(is.na(pv_SIG_pos) | is.na(pv_SIG_neg) | is.na(pv_SIG_fm))
+pv_SIG_pos <- pv_SIG_pos[ids]
+pv_SIG_neg <- pv_SIG_neg[ids]
+pv_SIG_fm <- pv_SIG_fm[ids]
+
+pv_ks3_SIG <- as.data.frame(Reduce(cbind, list(pv_SIG_pos, pv_SIG_neg, pv_SIG_fm)))
+colnames(pv_ks3_SIG) <- c("positive",  "negative", "combined")
+pv_ks3_SIG <- -log(pv_ks3_SIG, base = 10)
+```
+
+
+```{r}
+thr = 3
+data <- pv_ks3_SIG
+data = data[rowSums(is.na(data)) == 0,]
+data = data[rownames(data) %in% sel_tar_per_sample$GSM6858449$NT,]
+all_pv = unlist(as.vector(data))
+data$target <- rownames(data)
+ids <- (data$positive >= thr) | (data$negative >= thr)
+data <- data[ids,]
+srt = sort(data$positive + data$negative, decreasing = TRUE, index.return = TRUE)
+data = data[srt$ix,]
+data <- data[1:25,]
+data$target <- factor(data$target, levels = names(sort(pv_SIG_fm, decreasing = TRUE)))
+colnames(data) <- c("Positive",  "Negative", "Combined", "target")
+```
+
+
+
+```{r, fig.width=2.2, fig.height=5}
+df <- melt(data, id = c("target"))
+colnames(df) <- c("target", "method", "value")
+p <- ggplot(df, aes(x = method, y = target, fill = value)) +
+  geom_tile() + scale_fill_gradient2(low="white", high="red") +
+  geom_text(aes(label = round(value,2)), color = "black", size = 3) +
+  theme_classic() + 
+  #ggtitle(paste0("KS P-value")) + 
+  labs(fill="-lop(P-value)") + #xlab("Type of regulation") + ylab("SIG") + 
+  xlab("") + ylab("") + scale_x_discrete(guide = guide_axis(angle = 45)) + 
+  theme(legend.position = "none", axis.text.x=element_text(size=10),
+        title = element_text(size=9))
+  
+p
+```
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_pv_heatmap", ".png"))
+png(save_file, height=5, width=2.2, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_pv_heatmap", ".pdf"))
+pdf(file = save_file, height=5, width=2.2)
+print(p)
+dev.off()
+```
+
+
+```{r}
+smpl = sample3
+gene = "IFNGR2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+y_pos = min(df$scMINER_pos)
+x_pos = which(df$scMINER_pos == min(df$scMINER_pos))
+
+y_neg = max(df$scMINER_neg)
+x_neg = which(df$scMINER_neg == max(df$scMINER_neg))
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), legend.position = "top",
+      axis.title.y=element_text(angle = 90, size = 25),
+      plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+```{r}
+smpl = sample3
+gene = "IL1B"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+y_pos = min(df$scMINER_pos)
+x_pos = which(df$scMINER_pos == min(df$scMINER_pos))
+
+y_neg = max(df$scMINER_neg)
+x_neg = which(df$scMINER_neg == max(df$scMINER_neg))
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), legend.position = "top",
+      axis.title.y=element_text(angle = 90, size = 25),
+      plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+```{r}
+smpl = sample3
+gene = "EIF2AK2"
+rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p
+df <- data.frame(rank_profile = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p,
+                 scMINER_pos = GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES,
+                 scMINER_neg = GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES,
+                 pos = 1:length(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$r_p))
+
+ids_pos = which(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$indicator == 1)
+ES_pos = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$RES[ids_pos])
+data_pos <- data.frame(x = ids_pos, ES = ES_pos)
+
+ids_neg = which(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$indicator == 1)
+ES_neg = abs(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$RES[ids_neg])
+data_neg <- data.frame(x = ids_neg, ES = ES_neg)
+```
+
+
+
+```{r, fig.width=10, fig.height=5}
+colors <- c("positive" = "red", "negative" = "navy")
+
+xend = max(df$pos)
+x1 = min(df$pos)
+x2 = min(df$pos)
+y1 = min(df[,c(2,3)]) - 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+y2 = max(df[,c(2,3)]) + 0.05*(max(df[,c(2,3)])-min(df[,c(2,3)]))
+
+y_pos = max(df$scMINER_pos)
+x_pos = which(df$scMINER_pos == max(df$scMINER_pos))
+
+y_neg = min(df$scMINER_neg)
+x_neg = which(df$scMINER_neg == min(df$scMINER_neg))
+
+p1 <- ggplot(df, aes(x = pos)) + 
+  geom_segment(aes(x = 0, xend = xend, y=0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 0.5, color = "black") +
+  geom_segment(aes(x = 0, xend = x_pos, y = y_pos, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_pos, xend = x_pos, y = 0, yend = y_pos), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = 0, xend = x_neg, y = y_neg, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_segment(aes(x = x_neg, xend = x_neg, y = 0, yend = y_neg), size = 0.2, color = "black", linetype = 5) +
+  geom_line(aes(y=scMINER_pos, color = "positive"), size = 2) + 
+  geom_line(aes(y=scMINER_neg, color = "negative"), size = 2) + 
+  geom_point(x = x_pos, y = y_pos, colour = "black", size = 2) + 
+  geom_point(x = x_neg, y = y_neg, colour = "black", size = 2) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = 0, color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_pos, hjust = 1, label = round(y_pos,2), color = "black", size = 6) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = y_neg, hjust = 1, label = round(y_neg,2), color = "black", size = 6) + 
+  ylab("Enrichment score") + xlab("") +
+  theme_void(base_size = 16) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), legend.position = "top",
+      axis.title.y=element_text(angle = 90, size = 25),
+      plot.title = element_text(size = 25)) +
+  scale_color_manual(values = colors) + labs(color = "scMINER") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  ggtitle(paste0("        ", gene, " knockdown, scMINER")) + theme(legend.position = "none")
+p2 <- ggplot() + 
+  geom_segment(data = data_pos, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "red") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+p3 <- ggplot() + 
+  geom_segment(data = data_neg, aes(x = x, xend = x, y = 0, yend = 1, alpha = abs(ES)), size = 0.3, color = "navy") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 1, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = dim(df)[1], y = 0, yend = 0), size = 0.5, color = "black") +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), size = 0.5, color = "black") +
+  geom_segment(aes(x = dim(df)[1], xend = dim(df)[1], y = 0, yend = 1), size = 0.5, color = "black") +
+  theme_void() + theme(legend.position = "none") + xlim(1, dim(df)[1]) + 
+  annotate(geom = "text", x = 0 - 0.005*xend, y = 0, hjust = 1, label = " ", color = "black", size = 6) + 
+  scale_x_continuous(expand = expansion(mult = 0.1))
+
+p <- plot_grid(p1, p2, p3, align = 'v', ncol = 1, rel_heights = c(1, 0.05, 0.05))
+
+
+p <- p + annotate("text", x = 0.11, y = 0.025 + 0.045, hjust = 1, label = "Positive", color = "black", size = 5)
+p <- p + annotate("text", x = 0.11, y = 0.025, hjust = 1, label = "Negative", color = "black", size = 5)
+
+
+ES_pos = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ES, 3))
+pv_pos = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$pos$ks_pv, format = "e", digits = 2)
+
+ES_neg = as.character(round(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ES, 3))
+pv_neg = formatC(GSEA_scMINER_SIG[[smpl]][[gene]]$neg$ks_pv, format = "e", digits = 2)
+
+x_t = 0.6
+x_delta1 = 0.11
+x_delta2 = 0.08
+y_t = 0.85
+y_delta = 0.05
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Regulation", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "Positive", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Negative", color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t, hjust = 0, label = "ES", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - y_delta, hjust = 0, label = ES_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1, y = y_t - 2*y_delta, hjust = 0, label = ES_neg, color = "navy", size = 5)
+
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t, hjust = 0, label = "P-value", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - y_delta, hjust = 0, label = pv_pos, color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta1 + x_delta2, y = y_t - 2*y_delta, hjust = 0, label = pv_neg, color = "navy", size = 5)
+
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.png"))
+png(save_file, height=5, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_", gene, "_scMINER.pdf"))
+pdf(save_file, height=5, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+

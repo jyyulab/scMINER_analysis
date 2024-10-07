@@ -1,0 +1,209 @@
+---
+title: "SIG_GSEA_heatmap_and_ROC"
+output: html_document
+date: "2024-08-07"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pROC)
+library(gsubfn)
+library(PRROC)
+```
+
+
+```{r}
+save_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/results"
+sample3 = "GSM6858449"
+ref_type = "NT"
+```
+
+
+
+```{r}
+inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/DE_res_GSM6858449_NT.Rdata"
+load(inp_file)
+```
+
+
+```{r}
+net_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_SIG_net.Rdata"
+load(net_file)
+```
+
+
+```{r}
+load("/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/tf_sigs_hg.RData")
+only_sig_genes = tf_sigs$geneSymbol[tf_sigs$funcType == "SIG"]
+only_tf_genes = tf_sigs$geneSymbol[tf_sigs$funcType == "TF"]
+```
+
+
+```{r}
+logFC_th = 0.25
+DE_genes_res = lapply(names(DE_res), function(target) {ids = abs(DE_res[[target]][[target]]$logFC.NT) > logFC_th;
+  DE_genes = rownames(DE_res[[target]][[target]])[ids];
+  return(DE_genes)
+  })
+names(DE_genes_res) <- names(DE_res)
+
+sig_sources = intersect(names(DE_genes_res), only_sig_genes)
+sig_true_edges_str = unname(unlist(sapply(sig_sources, function(gene) paste(gene, DE_genes_res[[gene]], sep = '-'))))
+```
+
+```{r}
+inp_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data"
+inp_sig_file = file.path(inp_fold, paste0(ref_type, "_SIG_GSEA.Rdata"))
+load(inp_sig_file)
+```
+
+```{r}
+SIG_targets3 = names(GSEA_scMINER_SIG[[sample3]])
+```
+
+```{r}
+pv_SIG_pos <- sapply(SIG_targets3, function(gene) GSEA_scMINER_SIG[[sample3]][[gene]]$pos$ks_pv)
+pv_SIG_neg <- sapply(SIG_targets3, function(gene) GSEA_scMINER_SIG[[sample3]][[gene]]$neg$ks_pv)
+pv_SIG_fm <- sapply(SIG_targets3, function(gene) 
+  ifelse(is.null(GSEA_scMINER_SIG[[sample3]][[gene]]$all$fisher_pv), NA, GSEA_scMINER_SIG[[sample3]][[gene]]$all$fisher_pv))
+
+ids = !(is.na(pv_SIG_pos) | is.na(pv_SIG_neg) | is.na(pv_SIG_fm))
+pv_SIG_pos <- pv_SIG_pos[ids]
+pv_SIG_neg <- pv_SIG_neg[ids]
+pv_SIG_fm <- pv_SIG_fm[ids]
+
+pv_ks3_SIG <- as.data.frame(Reduce(cbind, list(pv_SIG_pos, pv_SIG_neg, pv_SIG_fm)))
+colnames(pv_ks3_SIG) <- c("positive",  "negative", "combined")
+pv_ks3_SIG <- -log(pv_ks3_SIG, base = 10)
+```
+
+
+```{r}
+#names(DE_genes_res)
+thr = 3
+data <- pv_ks3_SIG
+data = data[rowSums(is.na(data)) == 0,]
+data = data[rownames(data) %in% names(DE_genes_res),]
+all_pv = unlist(as.vector(data))
+data$target <- rownames(data)
+ids <- (data$positive >= thr) | (data$negative >= thr)
+data <- data[ids,]
+srt = sort(data$positive + data$negative, decreasing = TRUE, index.return = TRUE)
+data = data[srt$ix,]
+data <- data[1:25,]
+#data <- data[1:24,]
+sel_genes = data$target
+```
+
+
+```{r}
+AUROC_values = sapply(sel_genes, function(gene) {
+  print(gene)
+  true_targets = DE_genes_res[[gene]]
+  pred_targets = net3_SJ_NT_SIG_edges_MI$target[net3_SJ_NT_SIG_edges_MI$source == gene]
+  roc_SJ <- roc(pred_targets %in% true_targets, 1:length(pred_targets), direction = ">")
+  return(auc(roc_SJ))
+})
+
+AUPRCR_values = sapply(sel_genes, function(gene) {
+  true_targets = DE_genes_res[[gene]]
+  pred_targets = net3_SJ_NT_SIG_edges_MI$target[net3_SJ_NT_SIG_edges_MI$source == gene]
+  rand_edges = sample(x = pred_targets, size = length(pred_targets), replace = FALSE)
+  prc_SJ = pr.curve(scores.class0 = length(pred_targets):1, 
+                  weights.class0 = pred_targets %in% true_targets, 
+                  sorted = TRUE, curve = TRUE)
+  prc_rand = pr.curve(scores.class0 = length(pred_targets):1, 
+                  weights.class0 = rand_edges %in% true_targets, 
+                  sorted = TRUE, curve = TRUE)
+  return(prc_SJ$auc.integral/prc_rand$auc.integral)
+})
+```
+
+```{r}
+#names(DE_genes_res)
+thr = 3
+data <- pv_ks3_SIG
+data = data[rowSums(is.na(data)) == 0,]
+data = data[rownames(data) %in% names(DE_genes_res),]
+all_pv = unlist(as.vector(data))
+data$target <- rownames(data)
+ids <- (data$positive >= thr) | (data$negative >= thr)
+data <- data[ids,]
+srt = sort(data$positive + data$negative, decreasing = TRUE, index.return = TRUE)
+data = data[srt$ix,]
+data <- data[1:25,]
+```
+
+
+
+
+```{r, fig.width=3.5, fig.height=6}
+plot_fun = function() {
+  hmp <- Heatmap(mat, col = colors, name = "expression", 
+               show_row_names = TRUE, show_column_names = TRUE, cluster_rows = FALSE, 
+               column_names_rot = 45,
+               cluster_columns = FALSE,
+               show_heatmap_legend = FALSE,
+               row_names_side = "left",
+               cell_fun = function(j, i, x, y, width, height, fill) {
+                 grid.text(sprintf("%.2f", mat[i, j]), x, y, gp = gpar(fontsize = 10))},
+               right_annotation = rowAnnotation(AUROC = anno_barplot(AUROC_values, 
+                                                                   width = unit(2, "cm"), 
+                                                                   bar_width = 0.5,
+                                                                   attach = TRUE,
+                                                                   beside = TRUE,
+                                                                   add_numbers = FALSE, 
+                                                                   gp = gpar(fill = "black"), which = "row")) )
+  
+  draw(hmp)
+  
+  decorate_annotation("AUROC", {
+    vp = current.viewport()$name
+    grid.lines(x = unit(c(0.48, 0.48), "npc"),
+          y = unit(c(0, 1), "npc"),
+          default.units = "npc",
+          arrow = NULL, name = NULL,
+          gp=gpar(col = "red", lty = "dashed", lwd = 1), 
+          draw = TRUE, vp = NULL)})
+}
+plot_fun()
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_GSEA_pv_heatmap_ROC", ".png"))
+png(save_file, height=6, width=3.5, units="in", res=200)
+plot_fun()
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_GSEA_pv_heatmap_ROC", ".pdf"))
+pdf(file = save_file, height=6, width=3.5)
+plot_fun()
+dev.off()
+```

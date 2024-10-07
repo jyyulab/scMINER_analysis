@@ -1,0 +1,1502 @@
+---
+title: "read_and_process_networks"
+output: html_document
+date: "2024-05-31"
+---
+
+```{r}
+rm(list = ls())
+library(ggplot2)
+library(gridExtra)
+library(magrittr)
+library(dplyr) 
+library(ggVennDiagram)
+fold = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/analysis/read_and_proccess_networks"
+dir.create(fold)
+```
+
+```{r}
+#TEX_int, Effector-like T-cells, Teff-like
+#TEX_prog, Exhaustion progenitor T cells, Tpex
+#TEX_term, Terminal exhausted T cells, Tex
+```
+
+
+```{r}
+TEX_int_ATAC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/ATAC.TEX_intermediate.RData"
+load(TEX_int_ATAC_file)
+TEX_int_ATAC_edges <- lapply(1:length(names(ATACregulons)), function(k) {g = names(ATACregulons)[k]; targets = ATACregulons[[g]]; df = data.frame(source = rep(g, length(targets)), target = targets); return(df)}) %>% bind_rows()
+TEX_int_ATAC_edges_str = paste(TEX_int_ATAC_edges$source, TEX_int_ATAC_edges$target, sep='-')
+TEX_int_ATAC_sources = as.vector(unique(sort(TEX_int_ATAC_edges$source)))
+TEX_int_ATAC_targets = as.vector(unique(sort(TEX_int_ATAC_edges$target)))
+TEX_int_ATAC_reg_size = sapply(TEX_int_ATAC_sources, function(tf) {return(sum(TEX_int_ATAC_edges$source == tf))})
+TEX_int_ATAC_univ <- unique(sort(c(TEX_int_ATAC_sources, TEX_int_ATAC_targets)))
+
+TEX_prog_ATAC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/ATAC.TEX_progenitor.RData"
+load(TEX_prog_ATAC_file)
+TEX_prog_ATAC_edges <- lapply(1:length(names(ATACregulons)), function(k) {g = names(ATACregulons)[k]; targets = ATACregulons[[g]]; df = data.frame(source = rep(g, length(targets)), target = targets); return(df)}) %>% bind_rows()
+TEX_prog_ATAC_edges_str = paste(TEX_prog_ATAC_edges$source, TEX_prog_ATAC_edges$target, sep='-')
+TEX_prog_ATAC_sources = as.vector(unique(sort(TEX_prog_ATAC_edges$source)))
+TEX_prog_ATAC_targets = as.vector(unique(sort(TEX_prog_ATAC_edges$target)))
+TEX_prog_ATAC_reg_size = sapply(TEX_prog_ATAC_sources, function(tf) {return(sum(TEX_prog_ATAC_edges$source == tf))})
+TEX_prog_ATAC_univ <- unique(sort(c(TEX_prog_ATAC_sources, TEX_prog_ATAC_targets)))
+
+TEX_term_ATAC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/ATAC.TEX_terminally.RData"
+load(TEX_term_ATAC_file)
+TEX_term_ATAC_edges <- lapply(1:length(names(ATACregulons)), function(k) {g = names(ATACregulons)[k]; targets = ATACregulons[[g]]; df = data.frame(source = rep(g, length(targets)), target = targets); return(df)}) %>% bind_rows()
+TEX_term_ATAC_edges_str = paste(TEX_term_ATAC_edges$source, TEX_term_ATAC_edges$target, sep='-')
+TEX_term_ATAC_sources = as.vector(unique(sort(TEX_term_ATAC_edges$source)))
+TEX_term_ATAC_targets = as.vector(unique(sort(TEX_term_ATAC_edges$target)))
+TEX_term_ATAC_reg_size = sapply(TEX_term_ATAC_sources, function(tf) {return(sum(TEX_term_ATAC_edges$source == tf))})
+TEX_term_ATAC_univ <- unique(sort(c(TEX_term_ATAC_sources, TEX_term_ATAC_targets)))
+
+Tregs_Spleen_ATAC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/ATAC.Tregs_Spleen.RData"
+load(Tregs_Spleen_ATAC_file)
+Tregs_Spleen_ATAC_edges <- lapply(1:length(names(ATACregulons)), function(k) {g = names(ATACregulons)[k]; targets = ATACregulons[[g]]; df = data.frame(source = rep(g, length(targets)), target = targets); return(df)}) %>% bind_rows()
+Tregs_Spleen_ATAC_edges_str = paste(Tregs_Spleen_ATAC_edges$source, Tregs_Spleen_ATAC_edges$target, sep='-')
+Tregs_Spleen_ATAC_sources = as.vector(unique(sort(Tregs_Spleen_ATAC_edges$source)))
+Tregs_Spleen_ATAC_targets = as.vector(unique(sort(Tregs_Spleen_ATAC_edges$target)))
+Tregs_Spleen_ATAC_reg_size = sapply(Tregs_Spleen_ATAC_sources, function(tf) {return(sum(Tregs_Spleen_ATAC_edges$source == tf))})
+Tregs_Spleen_ATAC_univ <- unique(sort(c(Tregs_Spleen_ATAC_sources, Tregs_Spleen_ATAC_targets)))
+
+Tregs_VAT_ATAC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/ATAC.Tregs_VAT.RData"
+load(Tregs_VAT_ATAC_file)
+Tregs_VAT_ATAC_edges <- lapply(1:length(names(ATACregulons)), function(k) {g = names(ATACregulons)[k]; targets = ATACregulons[[g]]; df = data.frame(source = rep(g, length(targets)), target = targets); return(df)}) %>% bind_rows()
+Tregs_VAT_ATAC_edges_str = paste(Tregs_VAT_ATAC_edges$source, TEX_term_ATAC_edges$target, sep='-')
+Tregs_VAT_ATAC_sources = as.vector(unique(sort(Tregs_VAT_ATAC_edges$source)))
+Tregs_VAT_ATAC_targets = as.vector(unique(sort(Tregs_VAT_ATAC_edges$target)))
+Tregs_VAT_ATAC_reg_size = sapply(Tregs_VAT_ATAC_sources, function(tf) {return(sum(Tregs_VAT_ATAC_edges$source == tf))})
+Tregs_VAT_ATAC_univ <- unique(sort(c(Tregs_VAT_ATAC_sources, Tregs_VAT_ATAC_targets)))
+```
+
+
+```{r}
+options(digits=4)
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_int_ATAC_reg_size), size = TEX_int_ATAC_reg_size)
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=50, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 300, y = 0.0023, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Teff-like, ATAC, N=', as.character(dim(df)[1]), sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+
+```{r}
+save_file = file.path(fold, 'TEX_int_ATAC_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_int_ATAC_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_prog_ATAC_reg_size), size = TEX_prog_ATAC_reg_size)
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=50, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 320, y = 0.002, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tpex, ATAC, N=', as.character(dim(df)[1]), sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+
+```{r}
+save_file = file.path(fold, 'TEX_prog_ATAC_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_prog_ATAC_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_term_ATAC_reg_size), size = TEX_term_ATAC_reg_size)
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=50, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 240, y = 0.0026, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tex, ATAC, N=', as.character(dim(df)[1]), sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+
+```{r}
+save_file = file.path(fold, 'TEX_term_ATAC_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_term_ATAC_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(Tregs_Spleen_ATAC_reg_size), size = Tregs_Spleen_ATAC_reg_size)
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=50, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 560, y = 0.001, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tregs Spleen, ATAC, N=', as.character(dim(df)[1]), sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+
+```{r}
+save_file = file.path(fold, 'Tregs_Spleen_ATAC_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_Spleen_ATAC_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(Tregs_VAT_ATAC_reg_size), size = Tregs_VAT_ATAC_reg_size)
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=50, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 500, y = 0.0015, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tregs VAT, ATAC, N=', as.character(dim(df)[1]), sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+
+```{r}
+save_file = file.path(fold, 'Tregs_VAT_ATAC_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_VAT_ATAC_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r}
+orig_exp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GEX.TEX_intermediate.RData"
+load(orig_exp_file)
+TEX_int_counts = rawcounts.eset@assayData$exprs
+TEX_int_exp_genes = rownames(rawcounts.eset@assayData$exprs)
+TEX_int_univ <- unique(sort(c(TEX_int_exp_genes, TEX_int_ATAC_sources, TEX_int_ATAC_targets)))
+
+orig_exp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GEX.TEX_progenitor.RData"
+load(orig_exp_file)
+TEX_prog_counts = rawcounts.eset@assayData$exprs
+TEX_prog_exp_genes = rownames(rawcounts.eset@assayData$exprs)
+TEX_prog_univ <- unique(sort(c(TEX_prog_exp_genes, TEX_prog_ATAC_sources, TEX_prog_ATAC_targets)))
+
+orig_exp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GEX.TEX_terminally.RData"
+load(orig_exp_file)
+TEX_term_counts = rawcounts.eset@assayData$exprs
+TEX_term_exp_genes = rownames(rawcounts.eset@assayData$exprs)
+TEX_term_univ <- unique(sort(c(TEX_term_exp_genes, TEX_term_ATAC_sources, TEX_term_ATAC_targets)))
+
+orig_exp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GEX.Tregs_Spleen.RData"
+load(orig_exp_file)
+Tregs_Spleen_counts = rawcounts.eset@assayData$exprs
+Tregs_Spleen_exp_genes = rownames(rawcounts.eset@assayData$exprs)
+Tregs_Spleen_univ <- unique(sort(c(Tregs_Spleen_exp_genes, Tregs_Spleen_ATAC_sources, Tregs_Spleen_ATAC_targets)))
+
+orig_exp_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GEX.Tregs_VAT.RData"
+load(orig_exp_file)
+Tregs_VAT_counts = rawcounts.eset@assayData$exprs
+Tregs_VAT_exp_genes = rownames(rawcounts.eset@assayData$exprs)
+Tregs_VAT_univ <- unique(sort(c(Tregs_VAT_exp_genes, Tregs_VAT_ATAC_sources, Tregs_VAT_ATAC_targets)))
+```
+
+
+```{r}
+#TEX_int_SJ_TF_file = "/Volumes/shladysh/scMINER/22_GRNeval/scMINER/TEX_intermediate/consensus_network_ncol_TF.txt"
+#TEX_int_SJ_TF = read.table(TEX_int_SJ_TF_file, header = TRUE)
+#srt <- sort(TEX_int_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+#TEX_int_SJ_TF_srt <- TEX_int_SJ_TF[srt$ix,]
+#TEX_int_SJ_TF_edges <- data.frame(source = TEX_int_SJ_TF_srt$source, target = TEX_int_SJ_TF_srt$target, score = TEX_int_SJ_TF_srt$MI)
+#TEX_int_SJ_TF_sources = as.vector(unique(sort(TEX_int_SJ_TF_edges$source)))
+#TEX_int_SJ_TF_targets = as.vector(unique(sort(TEX_int_SJ_TF_edges$target)))
+#TEX_int_SJ_TF_reg_size = sapply(TEX_int_SJ_TF_sources, function(tf) {return(sum(TEX_int_SJ_TF_edges$source == tf))})
+
+TEX_int_SJ_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/scMINER/TEX_intermediate/consensus_network_ncol_TF.txt"
+TEX_int_SJ_TF = read.table(TEX_int_SJ_TF_file, header = TRUE)
+#srt <- sort(abs(TEX_int_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+srt <- sort(TEX_int_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+TEX_int_SJ_TF_srt <- TEX_int_SJ_TF[srt$ix,]
+TEX_int_SJ_TF_edges <- data.frame(source = TEX_int_SJ_TF_srt$source, target = TEX_int_SJ_TF_srt$target, score = TEX_int_SJ_TF$MI)
+TEX_int_SJ_TF_sources = as.vector(unique(sort(TEX_int_SJ_TF_edges$source)))
+TEX_int_SJ_TF_targets = as.vector(unique(sort(TEX_int_SJ_TF_edges$target)))
+TEX_int_SJ_TF_reg_size = sapply(TEX_int_SJ_TF_sources, function(tf) {return(sum(TEX_int_SJ_TF_edges$source == tf))})
+
+TEX_prog_SJ_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/scMINER/TEX_progenitor/consensus_network_ncol_TF.txt"
+TEX_prog_SJ_TF = read.table(TEX_prog_SJ_TF_file, header = TRUE)
+#srt <- sort(abs(TEX_prog_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+srt <- sort(TEX_prog_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+TEX_prog_SJ_TF_srt <- TEX_prog_SJ_TF[srt$ix,]
+TEX_prog_SJ_TF_edges <- data.frame(source = TEX_prog_SJ_TF_srt$source, target = TEX_prog_SJ_TF_srt$target, score = TEX_prog_SJ_TF_srt$MI)
+TEX_prog_SJ_TF_sources = as.vector(unique(sort(TEX_prog_SJ_TF_edges$source)))
+TEX_prog_SJ_TF_targets = as.vector(unique(sort(TEX_prog_SJ_TF_edges$target)))
+TEX_prog_SJ_TF_reg_size = sapply(TEX_prog_SJ_TF_sources, function(tf) {return(sum(TEX_prog_SJ_TF_edges$source == tf))})
+
+TEX_term_SJ_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/scMINER/TEX_terminally/consensus_network_ncol_TF.txt"
+TEX_term_SJ_TF = read.table(TEX_term_SJ_TF_file, header = TRUE)
+#srt <- sort(abs(TEX_term_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+srt <- sort(TEX_term_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+TEX_term_SJ_TF_srt <- TEX_term_SJ_TF[srt$ix,]
+TEX_term_SJ_TF_edges <- data.frame(source = TEX_term_SJ_TF_srt$source, target = TEX_term_SJ_TF_srt$target, score = TEX_term_SJ_TF_srt$MI)
+TEX_term_SJ_TF_sources = as.vector(unique(sort(TEX_term_SJ_TF_edges$source)))
+TEX_term_SJ_TF_targets = as.vector(unique(sort(TEX_term_SJ_TF_edges$target)))
+TEX_term_SJ_TF_reg_size = sapply(TEX_term_SJ_TF_sources, function(tf) {return(sum(TEX_term_SJ_TF_edges$source == tf))})
+
+Tregs_Spleen_SJ_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/scMINER/Tregs_Spleen/consensus_network_ncol_TF.txt"
+Tregs_Spleen_SJ_TF = read.table(Tregs_Spleen_SJ_TF_file, header = TRUE)
+#srt <- sort(abs(TEX_term_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+srt <- sort(Tregs_Spleen_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+Tregs_Spleen_SJ_TF_srt <- Tregs_Spleen_SJ_TF[srt$ix,]
+Tregs_Spleen_SJ_TF_edges <- data.frame(source = Tregs_Spleen_SJ_TF_srt$source, target = Tregs_Spleen_SJ_TF_srt$target, score = Tregs_Spleen_SJ_TF_srt$MI)
+Tregs_Spleen_SJ_TF_sources = as.vector(unique(sort(Tregs_Spleen_SJ_TF_edges$source)))
+Tregs_Spleen_SJ_TF_targets = as.vector(unique(sort(Tregs_Spleen_SJ_TF_edges$target)))
+Tregs_Spleen_SJ_TF_reg_size = sapply(Tregs_Spleen_SJ_TF_sources, function(tf) {return(sum(Tregs_Spleen_SJ_TF_edges$source == tf))})
+
+Tregs_VAT_SJ_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/scMINER/Tregs_VAT/consensus_network_ncol_TF.txt"
+Tregs_VAT_SJ_TF = read.table(Tregs_VAT_SJ_TF_file, header = TRUE)
+#srt <- sort(abs(TEX_term_SJ_TF$spearman), decreasing = TRUE, index.return=TRUE)
+srt <- sort(Tregs_VAT_SJ_TF$MI, decreasing = TRUE, index.return=TRUE)
+Tregs_VAT_SJ_TF_srt <- Tregs_VAT_SJ_TF[srt$ix,]
+Tregs_VAT_SJ_TF_edges <- data.frame(source = Tregs_VAT_SJ_TF_srt$source, target = Tregs_VAT_SJ_TF_srt$target, score = Tregs_VAT_SJ_TF_srt$MI)
+Tregs_VAT_SJ_TF_sources = as.vector(unique(sort(Tregs_VAT_SJ_TF_edges$source)))
+Tregs_VAT_SJ_TF_targets = as.vector(unique(sort(Tregs_VAT_SJ_TF_edges$target)))
+Tregs_VAT_SJ_TF_reg_size = sapply(Tregs_VAT_SJ_TF_sources, function(tf) {return(sum(Tregs_VAT_SJ_TF_edges$source == tf))})
+```
+
+
+
+```{r, fig.width=6, fig.height=6}
+x <- list("scMINER\nsources" = TEX_int_SJ_TF_sources, 
+          "scMINER targets" = TEX_int_SJ_TF_targets, 
+          "ATAC sources" = TEX_int_ATAC_sources, 
+          "ATAC\ntargets" = TEX_int_ATAC_targets)
+p <- ggVennDiagram(x) + 
+  ggtitle('Teff-like') + 
+  theme(legend.position = "none") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_int_venn_diag_scMINER_TF_vs_ATACsources_targets.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_int_venn_diag_scMINER_TF_vs_ATACsources_targets.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+x <- list("scMINER\nsources" = TEX_prog_SJ_TF_sources, 
+          "scMINER targets" = TEX_prog_SJ_TF_targets, 
+          "ATAC sources" = TEX_prog_ATAC_sources, 
+          "ATAC\ntargets" = TEX_prog_ATAC_targets)
+p <- ggVennDiagram(x) + 
+  ggtitle('Tpex') + 
+  theme(legend.position = "none") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, 'TEX_prog_venn_diag_scMINER_TF_vs_ATACsources_targets.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_prog_venn_diag_scMINER_TF_vs_ATACsources_targets.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+x <- list("scMINER\nsources" = TEX_term_SJ_TF_sources, 
+          "scMINER targets" = TEX_term_SJ_TF_targets, 
+          "ATAC sources" = TEX_term_ATAC_sources, 
+          "ATAC\ntargets" = TEX_term_ATAC_targets)
+p <- ggVennDiagram(x) + 
+  ggtitle('Tex') + 
+  theme(legend.position = "none") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_term_venn_diag_scMINER_TF_vs_ATACsources_targets.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_term_venn_diag_scMINER_TF_vs_ATACsources_targets.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width=6, fig.height=6}
+x <- list("scMINER\nsources" = Tregs_Spleen_SJ_TF_sources, 
+          "scMINER targets" = Tregs_Spleen_SJ_TF_targets, 
+          "ATAC sources" = Tregs_Spleen_ATAC_sources, 
+          "ATAC\ntargets" = Tregs_Spleen_ATAC_targets)
+p <- ggVennDiagram(x) + 
+  ggtitle('Tregs Spleen') + 
+  theme(legend.position = "none") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'Tregs_Spleen_venn_diag_scMINER_TF_vs_ATACsources_targets.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_Spleen_venn_diag_scMINER_TF_vs_ATACsources_targets.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+x <- list("scMINER\nsources" = Tregs_VAT_SJ_TF_sources, 
+          "scMINER targets" = Tregs_VAT_SJ_TF_targets, 
+          "ATAC sources" = Tregs_VAT_ATAC_sources, 
+          "ATAC\ntargets" = Tregs_VAT_ATAC_targets)
+p <- ggVennDiagram(x) + 
+  ggtitle('Tregs VAT', ) + 
+  theme(legend.position = "none") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'Tregs_VAT_venn_diag_scMINER_TF_vs_ATACsources_targets.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_VAT_venn_diag_scMINER_TF_vs_ATACsources_targets.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_int_SJ_TF_reg_size), size = TEX_int_SJ_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=10, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 100, y = 0.022, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Teff-like, scMINER, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_int_scMINER_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_int_scMINER_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_prog_SJ_TF_reg_size), size = TEX_prog_SJ_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=10, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 100, y = 0.02, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tpex, scMINER, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_prog_scMINER_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_prog_scMINER_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_term_SJ_TF_reg_size), size = TEX_term_SJ_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=10, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 100, y = 0.02, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tex, scMINER, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_term_scMINER_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_term_scMINER_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(Tregs_Spleen_SJ_TF_reg_size), size = Tregs_Spleen_SJ_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=10, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 130, y = 0.0065, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tregs Spleen, scMINER, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+```{r}
+save_file = file.path(fold, 'Tregs_Spleen_scMINER_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_Spleen_scMINER_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(Tregs_VAT_SJ_TF_reg_size), size = Tregs_VAT_SJ_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=10, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 130, y = 0.008, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tregs VAT, scMINER, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+p
+```
+
+```{r}
+save_file = file.path(fold, 'Tregs_VAT_scMINER_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_VAT_scMINER_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r}
+TEX_int_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GRNBoost2/TEXint_grnboost2_tf_network.txt"
+TEX_int_GRNB2_TF = read.table(TEX_int_GRNB2_TF_file, header = FALSE)
+srt <- sort(TEX_int_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_int_GRNB2_TF_srt <- TEX_int_GRNB2_TF[srt$ix,]
+TEX_int_GRNB2_TF_edges <- data.frame(source = TEX_int_GRNB2_TF_srt$V1, target = TEX_int_GRNB2_TF_srt$V2, score = TEX_int_GRNB2_TF_srt$V3)
+TEX_int_GRNB2_TF_sources = as.vector(unique(sort(TEX_int_GRNB2_TF_edges$source)))
+TEX_int_GRNB2_TF_targets = as.vector(unique(sort(TEX_int_GRNB2_TF_edges$target)))
+TEX_int_GRNB2_TF_reg_size = sapply(TEX_int_GRNB2_TF_sources, function(tf) {return(sum(TEX_int_GRNB2_TF_edges$source == tf))})
+
+TEX_prog_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GRNBoost2/TEXprog_grnboost2_tf_network.txt"
+TEX_prog_GRNB2_TF = read.table(TEX_prog_GRNB2_TF_file, header = FALSE)
+srt <- sort(TEX_prog_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_prog_GRNB2_TF_srt <- TEX_prog_GRNB2_TF[srt$ix,]
+TEX_prog_GRNB2_TF_edges <- data.frame(source = TEX_prog_GRNB2_TF_srt$V1, target = TEX_prog_GRNB2_TF_srt$V2, score = TEX_prog_GRNB2_TF_srt$V3)
+TEX_prog_GRNB2_TF_sources = as.vector(unique(sort(TEX_prog_GRNB2_TF_edges$source)))
+TEX_prog_GRNB2_TF_targets = as.vector(unique(sort(TEX_prog_GRNB2_TF_edges$target)))
+TEX_prog_GRNB2_TF_reg_size = sapply(TEX_prog_GRNB2_TF_sources, function(tf) {return(sum(TEX_prog_GRNB2_TF_edges$source == tf))})
+
+TEX_term_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GRNBoost2/TEXterm_grnboost2_tf_network.txt"
+TEX_term_GRNB2_TF = read.table(TEX_term_GRNB2_TF_file, header = FALSE)
+srt <- sort(TEX_term_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_term_GRNB2_TF_srt <- TEX_term_GRNB2_TF[srt$ix,]
+TEX_term_GRNB2_TF_edges <- data.frame(source = TEX_term_GRNB2_TF_srt$V1, target = TEX_term_GRNB2_TF_srt$V2, score = TEX_term_GRNB2_TF_srt$V3)
+TEX_term_GRNB2_TF_sources = as.vector(unique(sort(TEX_term_GRNB2_TF_edges$source)))
+TEX_term_GRNB2_TF_targets = as.vector(unique(sort(TEX_term_GRNB2_TF_edges$target)))
+TEX_term_GRNB2_TF_reg_size = sapply(TEX_term_GRNB2_TF_sources, function(tf) {return(sum(TEX_term_GRNB2_TF_edges$source == tf))})
+
+Tregs_Spleen_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GRNBoost2/Tregs_Spleen_grnboost2_tf_network.txt"
+Tregs_Spleen_GRNB2_TF = read.table(Tregs_Spleen_GRNB2_TF_file, header = FALSE)
+srt <- sort(TEX_term_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+Tregs_Spleen_GRNB2_TF_srt <- Tregs_Spleen_GRNB2_TF[srt$ix,]
+Tregs_Spleen_GRNB2_TF_edges <- data.frame(source = Tregs_Spleen_GRNB2_TF_srt$V1, target = Tregs_Spleen_GRNB2_TF_srt$V2, score = Tregs_Spleen_GRNB2_TF_srt$V3)
+Tregs_Spleen_GRNB2_TF_sources = as.vector(unique(sort(Tregs_Spleen_GRNB2_TF_edges$source)))
+Tregs_Spleen_GRNB2_TF_targets = as.vector(unique(sort(Tregs_Spleen_GRNB2_TF_edges$target)))
+Tregs_Spleen_GRNB2_TF_reg_size = sapply(Tregs_Spleen_GRNB2_TF_sources, function(tf) {return(sum(Tregs_Spleen_GRNB2_TF_edges$source == tf))})
+
+Tregs_VAT_GRNB2_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GRNBoost2/Tregs_VAT_grnboost2_tf_network.txt"
+Tregs_VAT_GRNB2_TF = read.table(Tregs_VAT_GRNB2_TF_file, header = FALSE)
+srt <- sort(Tregs_VAT_GRNB2_TF$V3, decreasing = TRUE, index.return=TRUE)
+Tregs_VAT_GRNB2_TF_srt <- Tregs_VAT_GRNB2_TF[srt$ix,]
+Tregs_VAT_GRNB2_TF_edges <- data.frame(source = Tregs_VAT_GRNB2_TF_srt$V1, target = Tregs_VAT_GRNB2_TF_srt$V2, score = Tregs_VAT_GRNB2_TF_srt$V3)
+Tregs_VAT_GRNB2_TF_sources = as.vector(unique(sort(Tregs_VAT_GRNB2_TF_edges$source)))
+Tregs_VAT_GRNB2_TF_targets = as.vector(unique(sort(Tregs_VAT_GRNB2_TF_edges$target)))
+Tregs_VAT_GRNB2_TF_reg_size = sapply(Tregs_VAT_GRNB2_TF_sources, function(tf) {return(sum(Tregs_VAT_GRNB2_TF_edges$source == tf))})
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_int_GRNB2_TF_reg_size), size = TEX_int_GRNB2_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=100, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 700, y = 0.0012, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Teff-like, GRNBoost2, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_int_GRNBoost2_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_int_GRNBoost2_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_prog_GRNB2_TF_reg_size), size = TEX_prog_GRNB2_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=100, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 500, y = 0.00115, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tpex, GRNBoost2, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_prog_GRNBoost2_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_prog_GRNBoost2_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(TEX_term_GRNB2_TF_reg_size), size = TEX_term_GRNB2_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=100, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 600, y = 0.00115, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tex, GRNBoost, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'TEX_term_GRNBoost2_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'TEX_term_GRNBoost2_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(Tregs_Spleen_GRNB2_TF_reg_size), size = Tregs_Spleen_GRNB2_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=100, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 700, y = 0.00115, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tregs Spleen, GRNBoost2, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'Tregs_Spleen_GRNBoost2_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_Spleen_GRNBoost2_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width=6, fig.height=6}
+df = data.frame(TF = names(Tregs_VAT_GRNB2_TF_reg_size), size = Tregs_VAT_GRNB2_TF_reg_size)
+
+p <- ggplot(df, aes(x=size)) + 
+  geom_histogram(aes(y=..density..), binwidth=100, color="red", fill="red") + 
+  geom_vline(aes(xintercept = median(size)), col='black', size=1) +
+  annotate("text", x = median(df$size) + 700, y = 0.001, label = as.character(median(df$size)), color = "black", size = 7) +
+  theme_linedraw(base_size = 16) + xlab("Regulon size") + ylab("Frequency") + 
+  ggtitle(paste('Tregs VAT, GRNBoost2, N=', as.character(dim(df)[1]), sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+
+p
+```
+
+```{r}
+save_file = file.path(fold, 'Tregs_VAT_GRNBoost2_TF_regulon_size.png')
+png(save_file, height=6, width=6, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(fold, 'Tregs_VAT_GRNBoost2_TF_regulon_size.pdf')
+pdf(save_file, height=6, width=6)
+p
+dev.off()
+```
+
+
+```{r}
+TEX_int_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GENIE3/TEXint_genie3_tf_network.txt"
+TEX_int_GN3_TF = read.table(TEX_int_GN3_TF_file, header = FALSE)
+srt <- sort(TEX_int_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_int_GN3_TF_srt <- TEX_int_GN3_TF[srt$ix,]
+TEX_int_GN3_TF_edges <- data.frame(source = TEX_int_GN3_TF_srt$V1, target = TEX_int_GN3_TF_srt$V2, score = TEX_int_GN3_TF_srt$V3)
+TEX_int_GN3_TF_sources = as.vector(unique(sort(TEX_int_GN3_TF_edges$source)))
+TEX_int_GN3_TF_targets = as.vector(unique(sort(TEX_int_GN3_TF_edges$target)))
+TEX_int_GN3_TF_reg_size = sapply(TEX_int_GN3_TF_sources, function(tf) {return(sum(TEX_int_GN3_TF_edges$source == tf))})
+
+TEX_prog_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GENIE3/TEXprog_genie3_tf_network.txt"
+TEX_prog_GN3_TF = read.table(TEX_prog_GN3_TF_file, header = FALSE)
+srt <- sort(TEX_prog_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_prog_GN3_TF_srt <- TEX_prog_GN3_TF[srt$ix,]
+TEX_prog_GN3_TF_edges <- data.frame(source = TEX_prog_GN3_TF_srt$V1, target = TEX_prog_GN3_TF_srt$V2, score = TEX_prog_GN3_TF_srt$V3)
+TEX_prog_GN3_TF_sources = as.vector(unique(sort(TEX_prog_GN3_TF_edges$source)))
+TEX_prog_GN3_TF_targets = as.vector(unique(sort(TEX_prog_GN3_TF_edges$target)))
+TEX_prog_GN3_TF_reg_size = sapply(TEX_prog_GN3_TF_sources, function(tf) {return(sum(TEX_prog_GN3_TF_edges$source == tf))})
+
+TEX_term_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GENIE3/TEXterm_genie3_tf_network.txt"
+TEX_term_GN3_TF = read.table(TEX_term_GN3_TF_file, header = FALSE)
+srt <- sort(TEX_term_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_term_GN3_TF_srt <- TEX_term_GN3_TF[srt$ix,]
+TEX_term_GN3_TF_edges <- data.frame(source = TEX_term_GN3_TF_srt$V1, target = TEX_term_GN3_TF_srt$V2, score = TEX_term_GN3_TF_srt$V3)
+TEX_term_GN3_TF_sources = as.vector(unique(sort(TEX_term_GN3_TF_edges$source)))
+TEX_term_GN3_TF_targets = as.vector(unique(sort(TEX_term_GN3_TF_edges$target)))
+TEX_term_GN3_TF_reg_size = sapply(TEX_term_GN3_TF_sources, function(tf) {return(sum(TEX_term_GN3_TF_edges$source == tf))})
+
+Tregs_Spleen_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GENIE3/Tregs_Spleen_genie3_tf_network.txt"
+Tregs_Spleen_GN3_TF = read.table(Tregs_Spleen_GN3_TF_file, header = FALSE)
+srt <- sort(Tregs_Spleen_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+Tregs_Spleen_GN3_TF_srt <- Tregs_Spleen_GN3_TF[srt$ix,]
+Tregs_Spleen_GN3_TF_edges <- data.frame(source = Tregs_Spleen_GN3_TF_srt$V1, target = Tregs_Spleen_GN3_TF_srt$V2, score = Tregs_Spleen_GN3_TF_srt$V3)
+Tregs_Spleen_GN3_TF_sources = as.vector(unique(sort(Tregs_Spleen_GN3_TF_edges$source)))
+Tregs_Spleen_GN3_TF_targets = as.vector(unique(sort(Tregs_Spleen_GN3_TF_edges$target)))
+Tregs_Spleen_GN3_TF_reg_size = sapply(Tregs_Spleen_GN3_TF_sources, function(tf) {return(sum(Tregs_Spleen_GN3_TF_edges$source == tf))})
+
+Tregs_VAT_GN3_TF_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/GENIE3/Tregs_VAT_genie3_tf_network.txt"
+Tregs_VAT_GN3_TF = read.table(Tregs_VAT_GN3_TF_file, header = FALSE)
+srt <- sort(Tregs_VAT_GN3_TF$V3, decreasing = TRUE, index.return=TRUE)
+Tregs_VAT_GN3_TF_srt <- Tregs_VAT_GN3_TF[srt$ix,]
+Tregs_VAT_GN3_TF_edges <- data.frame(source = Tregs_VAT_GN3_TF_srt$V1, target = Tregs_VAT_GN3_TF_srt$V2, score = Tregs_VAT_GN3_TF_srt$V3)
+Tregs_VAT_GN3_TF_sources = as.vector(unique(sort(Tregs_VAT_GN3_TF_edges$source)))
+Tregs_VAT_GN3_TF_targets = as.vector(unique(sort(Tregs_VAT_GN3_TF_edges$target)))
+Tregs_VAT_GN3_TF_reg_size = sapply(Tregs_VAT_GN3_TF_sources, function(tf) {return(sum(Tregs_VAT_GN3_TF_edges$source == tf))})
+```
+
+
+```{r}
+inp_hubs_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/tf_sigs_mm.RData"
+load(inp_hubs_file)
+TF_names <- tf_sigs[tf_sigs$isTF,1]
+
+TEX_int_TFs <- intersect(TEX_int_exp_genes, TF_names)
+TEX_int_TFs_ATAC <- intersect(TEX_int_TFs, TEX_int_ATAC_sources)
+
+TEX_prog_TFs <- intersect(TEX_prog_exp_genes, TF_names)
+TEX_prog_TFs_ATAC <- intersect(TEX_prog_TFs, TEX_prog_ATAC_sources)
+
+TEX_term_TFs <- intersect(TEX_term_exp_genes, TF_names)
+TEX_term_TFs_ATAC <- intersect(TEX_term_TFs, TEX_term_ATAC_sources)
+
+Tregs_Spleen_TFs <- intersect(Tregs_Spleen_exp_genes, TF_names)
+Tregs_Spleen_TFs_ATAC <- intersect(Tregs_Spleen_TFs, Tregs_Spleen_ATAC_sources)
+
+Tregs_VAT_TFs <- intersect(Tregs_VAT_exp_genes, TF_names)
+Tregs_VAT_TFs_ATAC <- intersect(Tregs_VAT_TFs, Tregs_VAT_ATAC_sources)
+```
+
+
+```{r}
+TEX_int_PIDC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/PIDC/TEXint_PIDC_output_tf_network.txt"
+TEX_int_PIDC_all = read.table(TEX_int_PIDC_file, header = FALSE)
+ids = TEX_int_PIDC_all$V1 %in% TF_names
+TEX_int_PIDC_TF <- TEX_int_PIDC_all[ids,]
+srt <- sort(TEX_int_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_int_PIDC_TF_srt <- TEX_int_PIDC_TF[srt$ix,]
+TEX_int_PIDC_TF_edges <- data.frame(source = TEX_int_PIDC_TF_srt$V1, target = TEX_int_PIDC_TF_srt$V2, score = TEX_int_PIDC_TF_srt$V3)
+TEX_int_PIDC_TF_sources = as.vector(unique(sort(TEX_int_PIDC_TF_edges$source)))
+TEX_int_PIDC_TF_targets = as.vector(unique(sort(TEX_int_PIDC_TF_edges$target)))
+TEX_int_PIDC_TF_reg_size = sapply(TEX_int_PIDC_TF_sources, function(tf) {return(sum(TEX_int_PIDC_TF_edges$source == tf))})
+
+TEX_prog_PIDC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/PIDC/TEXprog_PIDC_output_tf_network.txt"
+TEX_prog_PIDC_all = read.table(TEX_prog_PIDC_file, header = FALSE)
+ids = TEX_prog_PIDC_all$V1 %in% TF_names
+TEX_prog_PIDC_TF <- TEX_prog_PIDC_all[ids,]
+srt <- sort(TEX_prog_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_prog_PIDC_TF_srt <- TEX_prog_PIDC_TF[srt$ix,]
+TEX_prog_PIDC_TF_edges <- data.frame(source = TEX_prog_PIDC_TF_srt$V1, target = TEX_prog_PIDC_TF_srt$V2, score = TEX_prog_PIDC_TF_srt$V3)
+TEX_prog_PIDC_TF_sources = as.vector(unique(sort(TEX_prog_PIDC_TF_edges$source)))
+TEX_prog_PIDC_TF_targets = as.vector(unique(sort(TEX_prog_PIDC_TF_edges$target)))
+
+TEX_term_PIDC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/PIDC/TEXterm_PIDC_output_tf_network.txt"
+TEX_term_PIDC_all = read.table(TEX_term_PIDC_file, header = FALSE)
+ids = TEX_term_PIDC_all$V1 %in% TF_names
+TEX_term_PIDC_TF <- TEX_term_PIDC_all[ids,]
+srt <- sort(TEX_term_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+TEX_term_PIDC_TF_srt <- TEX_term_PIDC_TF[srt$ix,]
+TEX_term_PIDC_TF_edges <- data.frame(source = TEX_term_PIDC_TF_srt$V1, target = TEX_term_PIDC_TF_srt$V2, score = TEX_term_PIDC_TF_srt$V3)
+TEX_term_PIDC_TF_sources = as.vector(unique(sort(TEX_term_PIDC_TF_edges$source)))
+TEX_term_PIDC_TF_targets = as.vector(unique(sort(TEX_term_PIDC_TF_edges$target)))
+
+Tregs_Spleen_PIDC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/PIDC/Tregs_Spleen_PIDC_output_tf_network.txt"
+Tregs_Spleen_PIDC_all = read.table(Tregs_Spleen_PIDC_file, header = FALSE)
+ids = Tregs_Spleen_PIDC_all$V1 %in% TF_names
+Tregs_Spleen_PIDC_TF <- Tregs_Spleen_PIDC_all[ids,]
+srt <- sort(Tregs_Spleen_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+Tregs_Spleen_PIDC_TF_srt <- Tregs_Spleen_PIDC_TF[srt$ix,]
+Tregs_Spleen_PIDC_TF_edges <- data.frame(source = Tregs_Spleen_PIDC_TF_srt$V1, target = Tregs_Spleen_PIDC_TF_srt$V2, score = Tregs_Spleen_PIDC_TF_srt$V3)
+Tregs_Spleen_PIDC_TF_sources = as.vector(unique(sort(Tregs_Spleen_PIDC_TF_edges$source)))
+Tregs_Spleen_PIDC_TF_targets = as.vector(unique(sort(Tregs_Spleen_PIDC_TF_edges$target)))
+
+Tregs_VAT_PIDC_file = "/Volumes/shladysh/scMINER/figures/ATAC_GRN_evaluation/data/PIDC/Tregs_VAT_PIDC_output_tf_network.txt"
+Tregs_VAT_PIDC_all = read.table(Tregs_VAT_PIDC_file, header = FALSE)
+ids = Tregs_VAT_PIDC_all$V1 %in% TF_names
+Tregs_VAT_PIDC_TF <- Tregs_VAT_PIDC_all[ids,]
+srt <- sort(Tregs_VAT_PIDC_TF$V3, decreasing = TRUE, index.return=TRUE)
+Tregs_VAT_PIDC_TF_srt <- Tregs_VAT_PIDC_TF[srt$ix,]
+Tregs_VAT_PIDC_TF_edges <- data.frame(source = Tregs_VAT_PIDC_TF_srt$V1, target = Tregs_VAT_PIDC_TF_srt$V2, score = Tregs_VAT_PIDC_TF_srt$V3)
+Tregs_VAT_PIDC_TF_sources = as.vector(unique(sort(Tregs_VAT_PIDC_TF_edges$source)))
+Tregs_VAT_PIDC_TF_targets = as.vector(unique(sort(Tregs_VAT_PIDC_TF_edges$target)))
+```
+
+
+```{r}
+library(dplyr)
+
+E_max = length(TEX_int_univ)
+TEX_int_rnd_TF <- lapply(TEX_int_TFs, function(tf) {n = sample(seq(E_max), 1); df = data.frame(source = rep(tf, n), target = sample(TEX_int_univ, n), score = 1:n); return(df)}) %>% bind_rows()
+TEX_int_rnd_TF$score = sample(1:dim(TEX_int_rnd_TF)[1], dim(TEX_int_rnd_TF)[1])
+srt <- sort(TEX_int_rnd_TF$score, decreasing = TRUE, index.return=TRUE)
+TEX_int_rnd_TF_srt <- TEX_int_rnd_TF[srt$ix,]
+TEX_int_rnd_TF_edges <- data.frame(source = TEX_int_rnd_TF_srt$source, target = TEX_int_rnd_TF_srt$target, score = TEX_int_rnd_TF_srt$score)
+TEX_int_rnd_TF_sources = as.vector(unique(sort(TEX_int_rnd_TF_edges$source)))
+TEX_int_rnd_TF_targets = as.vector(unique(sort(TEX_int_rnd_TF_edges$target)))
+TEX_int_rnd_TF_reg_size = sapply(TEX_int_rnd_TF_sources, function(tf) {return(sum(TEX_int_rnd_TF_edges$source == tf))})
+
+E_max = length(TEX_prog_univ)
+TEX_prog_rnd_TF <- lapply(TEX_prog_TFs, function(tf) {n = sample(seq(E_max), 1); df = data.frame(source = rep(tf, n), target = sample(TEX_prog_univ, n), score = 1:n); return(df)}) %>% bind_rows()
+TEX_prog_rnd_TF$score = sample(1:dim(TEX_prog_rnd_TF)[1], dim(TEX_prog_rnd_TF)[1])
+srt <- sort(TEX_prog_rnd_TF$score, decreasing = TRUE, index.return=TRUE)
+TEX_prog_rnd_TF_srt <- TEX_prog_rnd_TF[srt$ix,]
+TEX_prog_rnd_TF_edges <- data.frame(source = TEX_prog_rnd_TF_srt$source, target = TEX_prog_rnd_TF_srt$target, score = TEX_prog_rnd_TF_srt$score)
+TEX_prog_rnd_TF_sources = as.vector(unique(sort(TEX_prog_rnd_TF_edges$source)))
+TEX_prog_rnd_TF_targets = as.vector(unique(sort(TEX_prog_rnd_TF_edges$target)))
+TEX_prog_rnd_TF_reg_size = sapply(TEX_prog_rnd_TF_sources, function(tf) {return(sum(TEX_prog_rnd_TF_edges$source == tf))})
+
+E_max = length(TEX_term_univ)
+TEX_term_rnd_TF <- lapply(TEX_term_TFs, function(tf) {n = sample(seq(E_max), 1); df = data.frame(source = rep(tf, n), target = sample(TEX_term_univ, n), score = 1:n); return(df)}) %>% bind_rows()
+TEX_term_rnd_TF$score = sample(1:dim(TEX_term_rnd_TF)[1], dim(TEX_term_rnd_TF)[1])
+srt <- sort(TEX_term_rnd_TF$score, decreasing = TRUE, index.return=TRUE)
+TEX_term_rnd_TF_srt <- TEX_term_rnd_TF[srt$ix,]
+TEX_term_rnd_TF_edges <- data.frame(source = TEX_term_rnd_TF_srt$source, target = TEX_term_rnd_TF_srt$target, score = TEX_term_rnd_TF_srt$score)
+TEX_term_rnd_TF_sources = as.vector(unique(sort(TEX_term_rnd_TF_edges$source)))
+TEX_term_rnd_TF_targets = as.vector(unique(sort(TEX_term_rnd_TF_edges$target)))
+TEX_term_rnd_TF_reg_size = sapply(TEX_term_rnd_TF_sources, function(tf) {return(sum(TEX_term_rnd_TF_edges$source == tf))})
+
+E_max = length(Tregs_Spleen_univ)
+Tregs_Spleen_rnd_TF <- lapply(Tregs_Spleen_TFs, function(tf) {n = sample(seq(E_max), 1); df = data.frame(source = rep(tf, n), target = sample(Tregs_Spleen_univ, n), score = 1:n); return(df)}) %>% bind_rows()
+Tregs_Spleen_rnd_TF$score = sample(1:dim(Tregs_Spleen_rnd_TF)[1], dim(Tregs_Spleen_rnd_TF)[1])
+srt <- sort(Tregs_Spleen_rnd_TF$score, decreasing = TRUE, index.return=TRUE)
+Tregs_Spleen_rnd_TF_srt <- Tregs_Spleen_rnd_TF[srt$ix,]
+Tregs_Spleen_rnd_TF_edges <- data.frame(source = Tregs_Spleen_rnd_TF_srt$source, target = Tregs_Spleen_rnd_TF_srt$target, score = Tregs_Spleen_rnd_TF_srt$score)
+Tregs_Spleen_rnd_TF_sources = as.vector(unique(sort(Tregs_Spleen_rnd_TF_edges$source)))
+Tregs_Spleen_rnd_TF_targets = as.vector(unique(sort(Tregs_Spleen_rnd_TF_edges$target)))
+Tregs_Spleen_rnd_TF_reg_size = sapply(Tregs_Spleen_rnd_TF_sources, function(tf) {return(sum(Tregs_Spleen_rnd_TF_edges$source == tf))})
+
+E_max = length(Tregs_VAT_univ)
+Tregs_VAT_rnd_TF <- lapply(Tregs_VAT_TFs, function(tf) {n = sample(seq(E_max), 1); df = data.frame(source = rep(tf, n), target = sample(Tregs_VAT_univ, n), score = 1:n); return(df)}) %>% bind_rows()
+Tregs_VAT_rnd_TF$score = sample(1:dim(Tregs_VAT_rnd_TF)[1], dim(Tregs_VAT_rnd_TF)[1])
+srt <- sort(Tregs_VAT_rnd_TF$score, decreasing = TRUE, index.return=TRUE)
+Tregs_VAT_rnd_TF_srt <- Tregs_VAT_rnd_TF[srt$ix,]
+Tregs_VAT_rnd_TF_edges <- data.frame(source = Tregs_VAT_rnd_TF_srt$source, target = Tregs_VAT_rnd_TF_srt$target, score = Tregs_VAT_rnd_TF_srt$score)
+Tregs_VAT_rnd_TF_sources = as.vector(unique(sort(Tregs_VAT_rnd_TF_edges$source)))
+Tregs_VAT_rnd_TF_targets = as.vector(unique(sort(Tregs_VAT_rnd_TF_edges$target)))
+Tregs_VAT_rnd_TF_reg_size = sapply(Tregs_VAT_rnd_TF_sources, function(tf) {return(sum(Tregs_VAT_rnd_TF_edges$source == tf))})
+```
+
+
+```{r}
+TEX_int_sel_TFs = Reduce(intersect, 
+                         list(TEX_int_SJ_TF_sources,
+                              TEX_int_GN3_TF_sources,
+                              TEX_int_GRNB2_TF_sources,
+                              TEX_int_PIDC_TF_sources,
+                              TEX_int_rnd_TF_sources,
+                              TEX_int_ATAC_sources))
+
+ids = TEX_int_ATAC_edges$source %in% TEX_int_sel_TFs
+TEX_int_ATAC_edges_sel = TEX_int_ATAC_edges[ids,]
+TEX_int_ATAC_edges_sel_str = paste(TEX_int_ATAC_edges_sel$source, TEX_int_ATAC_edges_sel$target, sep = '-')
+
+ids = TEX_int_SJ_TF_edges$source %in% TEX_int_sel_TFs
+TEX_int_SJ_TF_edges_sel = TEX_int_SJ_TF_edges[ids,]
+TEX_int_SJ_TF_edges_sel_str = paste(TEX_int_SJ_TF_edges_sel$source, TEX_int_SJ_TF_edges_sel$target, sep = '-')
+
+ids = TEX_int_GRNB2_TF_edges$source %in% TEX_int_sel_TFs
+TEX_int_GRNB2_TF_edges_sel = TEX_int_GRNB2_TF_edges[ids,]
+TEX_int_GRNB2_TF_edges_sel_str = paste(TEX_int_GRNB2_TF_edges_sel$source, TEX_int_GRNB2_TF_edges_sel$target, sep = '-')
+
+ids = TEX_int_GN3_TF_edges$source %in% TEX_int_sel_TFs
+TEX_int_GN3_TF_edges_sel = TEX_int_GN3_TF_edges[ids,]
+TEX_int_GN3_TF_edges_sel_str = paste(TEX_int_GN3_TF_edges_sel$source, TEX_int_GN3_TF_edges_sel$target, sep = '-')
+
+ids = TEX_int_PIDC_TF_edges$source %in% TEX_int_sel_TFs
+TEX_int_PIDC_TF_edges_sel = TEX_int_PIDC_TF_edges[ids,]
+TEX_int_PIDC_TF_edges_sel_str = paste(TEX_int_PIDC_TF_edges_sel$source, TEX_int_PIDC_TF_edges_sel$target, sep = '-')
+
+ids = TEX_int_rnd_TF_edges$source %in% TEX_int_sel_TFs
+TEX_int_rnd_TF_edges_sel = TEX_int_rnd_TF_edges[ids,]
+TEX_int_rnd_TF_edges_sel_str = paste(TEX_int_rnd_TF_edges_sel$source, TEX_int_rnd_TF_edges_sel$target, sep = '-')
+
+
+
+
+TEX_prog_sel_TFs = Reduce(intersect, 
+                          list(TEX_prog_SJ_TF_sources,
+                               TEX_prog_GN3_TF_sources,
+                               TEX_prog_GRNB2_TF_sources,
+                               TEX_prog_PIDC_TF_sources,
+                               TEX_prog_rnd_TF_sources,
+                               TEX_prog_ATAC_sources))
+
+ids = TEX_prog_ATAC_edges$source %in% TEX_prog_sel_TFs
+TEX_prog_ATAC_edges_sel = TEX_prog_ATAC_edges[ids,]
+TEX_prog_ATAC_edges_sel_str = paste(TEX_prog_ATAC_edges_sel$source, TEX_prog_ATAC_edges_sel$target, sep = '-')
+
+ids = TEX_prog_SJ_TF_edges$source %in% TEX_prog_sel_TFs
+TEX_prog_SJ_TF_edges_sel = TEX_prog_SJ_TF_edges[ids,]
+TEX_prog_SJ_TF_edges_sel_str = paste(TEX_prog_SJ_TF_edges_sel$source, TEX_prog_SJ_TF_edges_sel$target, sep = '-')
+
+ids = TEX_prog_GRNB2_TF_edges$source %in% TEX_prog_sel_TFs
+TEX_prog_GRNB2_TF_edges_sel = TEX_prog_GRNB2_TF_edges[ids,]
+TEX_prog_GRNB2_TF_edges_sel_str = paste(TEX_prog_GRNB2_TF_edges_sel$source, TEX_prog_GRNB2_TF_edges_sel$target, sep = '-')
+
+ids = TEX_prog_GN3_TF_edges$source %in% TEX_prog_sel_TFs
+TEX_prog_GN3_TF_edges_sel = TEX_prog_GN3_TF_edges[ids,]
+TEX_prog_GN3_TF_edges_sel_str = paste(TEX_prog_GN3_TF_edges_sel$source, TEX_prog_GN3_TF_edges_sel$target, sep = '-')
+
+ids = TEX_prog_PIDC_TF_edges$source %in% TEX_prog_sel_TFs
+TEX_prog_PIDC_TF_edges_sel = TEX_prog_PIDC_TF_edges[ids,]
+TEX_prog_PIDC_TF_edges_sel_str = paste(TEX_prog_PIDC_TF_edges_sel$source, TEX_prog_PIDC_TF_edges_sel$target, sep = '-')
+
+ids = TEX_prog_rnd_TF_edges$source %in% TEX_prog_sel_TFs
+TEX_prog_rnd_TF_edges_sel = TEX_prog_rnd_TF_edges[ids,]
+TEX_prog_rnd_TF_edges_sel_str = paste(TEX_prog_rnd_TF_edges_sel$source, TEX_prog_rnd_TF_edges_sel$target, sep = '-')
+
+
+
+
+TEX_term_sel_TFs = Reduce(intersect, 
+                          list(TEX_term_SJ_TF_sources,
+                               TEX_term_GN3_TF_sources,
+                               TEX_term_GRNB2_TF_sources,
+                               TEX_term_PIDC_TF_sources,
+                               TEX_term_rnd_TF_sources,
+                               TEX_term_ATAC_sources))
+
+ids = TEX_term_ATAC_edges$source %in% TEX_term_sel_TFs
+TEX_term_ATAC_edges_sel = TEX_term_ATAC_edges[ids,]
+TEX_term_ATAC_edges_sel_str = paste(TEX_term_ATAC_edges_sel$source, TEX_term_ATAC_edges_sel$target, sep = '-')
+
+ids = TEX_term_SJ_TF_edges$source %in% TEX_term_sel_TFs
+TEX_term_SJ_TF_edges_sel = TEX_term_SJ_TF_edges[ids,]
+TEX_term_SJ_TF_edges_sel_str = paste(TEX_term_SJ_TF_edges_sel$source, TEX_term_SJ_TF_edges_sel$target, sep = '-')
+
+ids = TEX_term_GRNB2_TF_edges$source %in% TEX_term_sel_TFs
+TEX_term_GRNB2_TF_edges_sel = TEX_term_GRNB2_TF_edges[ids,]
+TEX_term_GRNB2_TF_edges_sel_str = paste(TEX_term_GRNB2_TF_edges_sel$source, TEX_term_GRNB2_TF_edges_sel$target, sep = '-')
+
+ids = TEX_term_GN3_TF_edges$source %in% TEX_term_sel_TFs
+TEX_term_GN3_TF_edges_sel = TEX_term_GN3_TF_edges[ids,]
+TEX_term_GN3_TF_edges_sel_str = paste(TEX_term_GN3_TF_edges_sel$source, TEX_term_GN3_TF_edges_sel$target, sep = '-')
+
+ids = TEX_term_PIDC_TF_edges$source %in% TEX_term_sel_TFs
+TEX_term_PIDC_TF_edges_sel = TEX_term_PIDC_TF_edges[ids,]
+TEX_term_PIDC_TF_edges_sel_str = paste(TEX_term_PIDC_TF_edges_sel$source, TEX_term_PIDC_TF_edges_sel$target, sep = '-')
+
+ids = TEX_term_rnd_TF_edges$source %in% TEX_term_sel_TFs
+TEX_term_rnd_TF_edges_sel = TEX_term_rnd_TF_edges[ids,]
+TEX_term_rnd_TF_edges_sel_str = paste(TEX_term_rnd_TF_edges_sel$source, TEX_term_rnd_TF_edges_sel$target, sep = '-')
+
+
+
+Tregs_Spleen_sel_TFs = Reduce(intersect, 
+                          list(Tregs_Spleen_SJ_TF_sources,
+                               Tregs_Spleen_GN3_TF_sources,
+                               Tregs_Spleen_GRNB2_TF_sources,
+                               Tregs_Spleen_PIDC_TF_sources,
+                               Tregs_Spleen_rnd_TF_sources,
+                               Tregs_Spleen_ATAC_sources))
+
+ids = Tregs_Spleen_ATAC_edges$source %in% Tregs_Spleen_sel_TFs
+Tregs_Spleen_ATAC_edges_sel = Tregs_Spleen_ATAC_edges[ids,]
+Tregs_Spleen_ATAC_edges_sel_str = paste(Tregs_Spleen_ATAC_edges_sel$source, Tregs_Spleen_ATAC_edges_sel$target, sep = '-')
+
+ids = Tregs_Spleen_SJ_TF_edges$source %in% Tregs_Spleen_sel_TFs
+Tregs_Spleen_SJ_TF_edges_sel = Tregs_Spleen_SJ_TF_edges[ids,]
+Tregs_Spleen_SJ_TF_edges_sel_str = paste(Tregs_Spleen_SJ_TF_edges_sel$source, Tregs_Spleen_SJ_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_Spleen_GRNB2_TF_edges$source %in% Tregs_Spleen_sel_TFs
+Tregs_Spleen_GRNB2_TF_edges_sel = Tregs_Spleen_GRNB2_TF_edges[ids,]
+Tregs_Spleen_GRNB2_TF_edges_sel_str = paste(Tregs_Spleen_GRNB2_TF_edges_sel$source, Tregs_Spleen_GRNB2_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_Spleen_GN3_TF_edges$source %in% Tregs_Spleen_sel_TFs
+Tregs_Spleen_GN3_TF_edges_sel = Tregs_Spleen_GN3_TF_edges[ids,]
+Tregs_Spleen_GN3_TF_edges_sel_str = paste(Tregs_Spleen_GN3_TF_edges_sel$source, Tregs_Spleen_GN3_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_Spleen_PIDC_TF_edges$source %in% Tregs_Spleen_sel_TFs
+Tregs_Spleen_PIDC_TF_edges_sel = Tregs_Spleen_PIDC_TF_edges[ids,]
+Tregs_Spleen_PIDC_TF_edges_sel_str = paste(Tregs_Spleen_PIDC_TF_edges_sel$source, Tregs_Spleen_PIDC_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_Spleen_rnd_TF_edges$source %in% Tregs_Spleen_sel_TFs
+Tregs_Spleen_rnd_TF_edges_sel = Tregs_Spleen_rnd_TF_edges[ids,]
+Tregs_Spleen_rnd_TF_edges_sel_str = paste(Tregs_Spleen_rnd_TF_edges_sel$source, Tregs_Spleen_rnd_TF_edges_sel$target, sep = '-')
+
+
+
+
+Tregs_VAT_sel_TFs = Reduce(intersect, 
+                          list(Tregs_VAT_SJ_TF_sources,
+                               Tregs_VAT_GN3_TF_sources,
+                               Tregs_VAT_GRNB2_TF_sources,
+                               Tregs_VAT_PIDC_TF_sources,
+                               Tregs_VAT_rnd_TF_sources,
+                               Tregs_VAT_ATAC_sources))
+
+ids = Tregs_VAT_ATAC_edges$source %in% Tregs_VAT_sel_TFs
+Tregs_VAT_ATAC_edges_sel = Tregs_VAT_ATAC_edges[ids,]
+Tregs_VAT_ATAC_edges_sel_str = paste(Tregs_VAT_ATAC_edges_sel$source, Tregs_VAT_ATAC_edges_sel$target, sep = '-')
+
+ids = Tregs_VAT_SJ_TF_edges$source %in% Tregs_VAT_sel_TFs
+Tregs_VAT_SJ_TF_edges_sel = Tregs_VAT_SJ_TF_edges[ids,]
+Tregs_VAT_SJ_TF_edges_sel_str = paste(Tregs_VAT_SJ_TF_edges_sel$source, Tregs_VAT_SJ_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_VAT_GRNB2_TF_edges$source %in% Tregs_VAT_sel_TFs
+Tregs_VAT_GRNB2_TF_edges_sel = Tregs_VAT_GRNB2_TF_edges[ids,]
+Tregs_VAT_GRNB2_TF_edges_sel_str = paste(Tregs_VAT_GRNB2_TF_edges_sel$source, Tregs_VAT_GRNB2_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_VAT_GN3_TF_edges$source %in% Tregs_VAT_sel_TFs
+Tregs_VAT_GN3_TF_edges_sel = Tregs_VAT_GN3_TF_edges[ids,]
+Tregs_VAT_GN3_TF_edges_sel_str = paste(Tregs_VAT_GN3_TF_edges_sel$source, Tregs_VAT_GN3_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_VAT_PIDC_TF_edges$source %in% Tregs_VAT_sel_TFs
+Tregs_VAT_PIDC_TF_edges_sel = Tregs_VAT_PIDC_TF_edges[ids,]
+Tregs_VAT_PIDC_TF_edges_sel_str = paste(Tregs_VAT_PIDC_TF_edges_sel$source, Tregs_VAT_PIDC_TF_edges_sel$target, sep = '-')
+
+ids = Tregs_VAT_rnd_TF_edges$source %in% Tregs_VAT_sel_TFs
+Tregs_VAT_rnd_TF_edges_sel = Tregs_VAT_rnd_TF_edges[ids,]
+Tregs_VAT_rnd_TF_edges_sel_str = paste(Tregs_VAT_rnd_TF_edges_sel$source, Tregs_VAT_rnd_TF_edges_sel$target, sep = '-')
+```
+
+
+```{r}
+TEX_int = list("exp" = list("counts" = TEX_int_counts),
+               "genes" = list("exp_genes" = TEX_int_exp_genes,
+                              "univ" = TEX_int_univ,
+                              "TFs" = TEX_int_TFs, 
+                              "TFs_ATAC" = TEX_int_TFs_ATAC,
+                              "TFs_sel" = TEX_int_sel_TFs),
+               "net" = list("ATAC" = list("edges" = TEX_int_ATAC_edges,
+                                          "edges_str" = TEX_int_ATAC_edges_str,
+                                          "sources" = TEX_int_ATAC_sources,
+                                          "targets" = TEX_int_ATAC_targets,
+                                          "reg_size" = TEX_int_ATAC_reg_size,
+                                          "univ" = TEX_int_ATAC_univ,
+                                          "edges_sel" = TEX_int_ATAC_edges_sel,
+                                          "edges_sel_str" = TEX_int_ATAC_edges_sel_str),
+                            "scMINER" = list("edges" = TEX_int_SJ_TF_edges,
+                                                "sources" = TEX_int_SJ_TF_sources,
+                                                "targets" = TEX_int_SJ_TF_targets,
+                                                "reg_size" = TEX_int_SJ_TF_reg_size,
+                                                "edges_sel" = TEX_int_SJ_TF_edges_sel,
+                                                "edges_sel_str" = TEX_int_SJ_TF_edges_sel_str),
+                            "GRNBoost2" = list("edges" = TEX_int_GRNB2_TF_edges,
+                                               "sources" = TEX_int_GRNB2_TF_sources,
+                                               "targets" = TEX_int_GRNB2_TF_targets,
+                                               "reg_size" = TEX_int_GRNB2_TF_reg_size,
+                                               "edges_sel" = TEX_int_GRNB2_TF_edges_sel,
+                                               "edges_sel_str" = TEX_int_GRNB2_TF_edges_sel_str),
+                            "GENIE3" = list("edges" = TEX_int_GN3_TF_edges,
+                                            "sources" = TEX_int_GN3_TF_sources,
+                                            "targets" = TEX_int_GN3_TF_targets,
+                                            "edges_sel" = TEX_int_GN3_TF_edges_sel,
+                                            "edges_sel_str" = TEX_int_GN3_TF_edges_sel_str),
+                            "PIDC" = list("edges" = TEX_int_PIDC_TF_edges,
+                                          "sources" = TEX_int_PIDC_TF_sources,
+                                          "targets" = TEX_int_PIDC_TF_targets,
+                                          "edges_sel" = TEX_int_PIDC_TF_edges_sel,
+                                          "edges_sel_str" = TEX_int_PIDC_TF_edges_sel_str),
+                            "Rand" = list("edges" = TEX_int_rnd_TF_edges,
+                                          "sources" = TEX_int_rnd_TF_sources,
+                                          "targets" = TEX_int_rnd_TF_targets,
+                                          "reg_size" = TEX_int_rnd_TF_reg_size,
+                                          "edges_sel" = TEX_int_rnd_TF_edges_sel,
+                                          "edges_sel_str" = TEX_int_rnd_TF_edges_sel_str)))
+
+
+TEX_prog = list("exp" = list("counts" = TEX_prog_counts),
+                "genes" = list("exp_genes" = TEX_prog_exp_genes,
+                               "univ" = TEX_prog_univ,
+                               "TFs" = TEX_prog_TFs, 
+                               "TFs_ATAC" = TEX_prog_TFs_ATAC,
+                               "TFs_sel" = TEX_prog_sel_TFs),
+                "net" = list("ATAC" = list("edges" = TEX_prog_ATAC_edges,
+                                           "edges_str" = TEX_prog_ATAC_edges_str,
+                                           "sources" = TEX_prog_ATAC_sources,
+                                           "targets" = TEX_prog_ATAC_targets,
+                                           "reg_size" = TEX_prog_ATAC_reg_size,
+                                           "univ" = TEX_prog_ATAC_univ,
+                                           "edges_sel" = TEX_prog_ATAC_edges_sel,
+                                           "edges_sel_str" = TEX_prog_ATAC_edges_sel_str),
+                             "scMINER" = list("edges" = TEX_prog_SJ_TF_edges,
+                                                 "sources" = TEX_prog_SJ_TF_sources,
+                                                 "targets" = TEX_prog_SJ_TF_targets,
+                                                 "reg_size" = TEX_prog_SJ_TF_reg_size,
+                                                 "edges_sel" = TEX_prog_SJ_TF_edges_sel,
+                                                 "edges_sel_str" = TEX_prog_SJ_TF_edges_sel_str),
+                             "GRNBoost2" = list("edges" = TEX_prog_GRNB2_TF_edges,
+                                                "sources" = TEX_prog_GRNB2_TF_sources,
+                                                "targets" = TEX_prog_GRNB2_TF_targets,
+                                                "reg_size" = TEX_prog_GRNB2_TF_reg_size,
+                                                "edges_sel" = TEX_prog_GRNB2_TF_edges_sel,
+                                                "edges_sel_str" = TEX_prog_GRNB2_TF_edges_sel_str),
+                             "GENIE3" = list("edges" = TEX_prog_GN3_TF_edges,
+                                             "sources" = TEX_prog_GN3_TF_sources,
+                                             "targets" = TEX_prog_GN3_TF_targets,
+                                             "edges_sel" = TEX_prog_GN3_TF_edges_sel,
+                                             "edges_sel_str" = TEX_prog_GN3_TF_edges_sel_str),
+                             "PIDC" = list("edges" = TEX_prog_PIDC_TF_edges,
+                                           "sources" = TEX_prog_PIDC_TF_sources,
+                                           "targets" = TEX_prog_PIDC_TF_targets,
+                                           "edges_sel" = TEX_prog_PIDC_TF_edges_sel,
+                                           "edges_sel_str" = TEX_prog_PIDC_TF_edges_sel_str),
+                             "Rand" = list("edges" = TEX_prog_rnd_TF_edges,
+                                           "sources" = TEX_prog_rnd_TF_sources,
+                                           "targets" = TEX_prog_rnd_TF_targets,
+                                           "reg_size" = TEX_prog_rnd_TF_reg_size,
+                                           "edges_sel" = TEX_prog_rnd_TF_edges_sel,
+                                           "edges_sel_str" = TEX_prog_rnd_TF_edges_sel_str)))
+
+
+
+TEX_term = list("exp" = list("counts" = TEX_term_counts),
+                "genes" = list("exp_genes" = TEX_term_exp_genes,
+                               "univ" = TEX_term_univ,
+                               "TFs" = TEX_term_TFs, 
+                               "TFs_ATAC" = TEX_term_TFs_ATAC,
+                               "TFs_sel" = TEX_term_sel_TFs),
+                "net" = list("ATAC" = list("edges" = TEX_term_ATAC_edges,
+                                           "edges_str" = TEX_term_ATAC_edges_str,
+                                           "sources" = TEX_term_ATAC_sources,
+                                           "targets" = TEX_term_ATAC_targets,
+                                           "reg_size" = TEX_term_ATAC_reg_size,
+                                           "univ" = TEX_term_ATAC_univ,
+                                           "edges_sel" = TEX_term_ATAC_edges_sel,
+                                           "edges_sel_str" = TEX_term_ATAC_edges_sel_str),
+                             "scMINER" = list("edges" = TEX_term_SJ_TF_edges,
+                                                 "sources" = TEX_term_SJ_TF_sources,
+                                                 "targets" = TEX_term_SJ_TF_targets,
+                                                 "reg_size" = TEX_term_SJ_TF_reg_size,
+                                                 "edges_sel" = TEX_term_SJ_TF_edges_sel,
+                                                 "edges_sel_str" = TEX_term_SJ_TF_edges_sel_str),
+                             "GRNBoost2" = list("edges" = TEX_term_GRNB2_TF_edges,
+                                                "sources" = TEX_term_GRNB2_TF_sources,
+                                                "targets" = TEX_term_GRNB2_TF_targets,
+                                                "reg_size" = TEX_term_GRNB2_TF_reg_size,
+                                                "edges_sel" = TEX_term_GRNB2_TF_edges_sel,
+                                                "edges_sel_str" = TEX_term_GRNB2_TF_edges_sel_str),
+                             "GENIE3" = list("edges" = TEX_term_GN3_TF_edges,
+                                             "sources" = TEX_term_GN3_TF_sources,
+                                             "targets" = TEX_term_GN3_TF_targets,
+                                             "edges_sel" = TEX_term_GN3_TF_edges_sel,
+                                             "edges_sel_str" = TEX_term_GN3_TF_edges_sel_str),
+                             "PIDC" = list("edges" = TEX_term_PIDC_TF_edges,
+                                           "sources" = TEX_term_PIDC_TF_sources,
+                                           "targets" = TEX_term_PIDC_TF_targets,
+                                           "edges_sel" = TEX_term_PIDC_TF_edges_sel,
+                                           "edges_sel_str" = TEX_term_PIDC_TF_edges_sel_str),
+                             "Rand" = list("edges" = TEX_term_rnd_TF_edges,
+                                           "sources" = TEX_term_rnd_TF_sources,
+                                           "targets" = TEX_term_rnd_TF_targets,
+                                           "reg_size" = TEX_term_rnd_TF_reg_size,
+                                           "edges_sel" = TEX_term_rnd_TF_edges_sel,
+                                           "edges_sel_str" = TEX_term_rnd_TF_edges_sel_str)))
+
+
+
+Tregs_Spleen = list("exp" = list("counts" = Tregs_Spleen_counts),
+                "genes" = list("exp_genes" = Tregs_Spleen_exp_genes,
+                               "univ" = Tregs_Spleen_univ,
+                               "TFs" = Tregs_Spleen_TFs, 
+                               "TFs_ATAC" = Tregs_Spleen_TFs_ATAC,
+                               "TFs_sel" = Tregs_Spleen_sel_TFs),
+                "net" = list("ATAC" = list("edges" = Tregs_Spleen_ATAC_edges,
+                                           "edges_str" = Tregs_Spleen_ATAC_edges_str,
+                                           "sources" = Tregs_Spleen_ATAC_sources,
+                                           "targets" = Tregs_Spleen_ATAC_targets,
+                                           "reg_size" = Tregs_Spleen_ATAC_reg_size,
+                                           "univ" = Tregs_Spleen_ATAC_univ,
+                                           "edges_sel" = Tregs_Spleen_ATAC_edges_sel,
+                                           "edges_sel_str" = Tregs_Spleen_ATAC_edges_sel_str),
+                             "scMINER" = list("edges" = Tregs_Spleen_SJ_TF_edges,
+                                              "sources" = Tregs_Spleen_SJ_TF_sources,
+                                              "targets" = Tregs_Spleen_SJ_TF_targets,
+                                              "reg_size" = Tregs_Spleen_SJ_TF_reg_size,
+                                              "edges_sel" = Tregs_Spleen_SJ_TF_edges_sel,
+                                              "edges_sel_str" = Tregs_Spleen_SJ_TF_edges_sel_str),
+                             "GRNBoost2" = list("edges" = Tregs_Spleen_GRNB2_TF_edges,
+                                                "sources" = Tregs_Spleen_GRNB2_TF_sources,
+                                                "targets" = Tregs_Spleen_GRNB2_TF_targets,
+                                                "reg_size" = Tregs_Spleen_GRNB2_TF_reg_size,
+                                                "edges_sel" = Tregs_Spleen_GRNB2_TF_edges_sel,
+                                                "edges_sel_str" = Tregs_Spleen_GRNB2_TF_edges_sel_str),
+                             "GENIE3" = list("edges" = Tregs_Spleen_GN3_TF_edges,
+                                             "sources" = Tregs_Spleen_GN3_TF_sources,
+                                             "targets" = Tregs_Spleen_GN3_TF_targets,
+                                             "edges_sel" = Tregs_Spleen_GN3_TF_edges_sel,
+                                             "edges_sel_str" = Tregs_Spleen_GN3_TF_edges_sel_str),
+                             "PIDC" = list("edges" = Tregs_Spleen_PIDC_TF_edges,
+                                           "sources" = Tregs_Spleen_PIDC_TF_sources,
+                                           "targets" = Tregs_Spleen_PIDC_TF_targets,
+                                           "edges_sel" = Tregs_Spleen_PIDC_TF_edges_sel,
+                                           "edges_sel_str" = Tregs_Spleen_PIDC_TF_edges_sel_str),
+                             "Rand" = list("edges" = Tregs_Spleen_rnd_TF_edges,
+                                           "sources" = Tregs_Spleen_rnd_TF_sources,
+                                           "targets" = Tregs_Spleen_rnd_TF_targets,
+                                           "reg_size" = Tregs_Spleen_rnd_TF_reg_size,
+                                           "edges_sel" = Tregs_Spleen_rnd_TF_edges_sel,
+                                           "edges_sel_str" = Tregs_Spleen_rnd_TF_edges_sel_str)))
+
+
+
+Tregs_VAT = list("exp" = list("counts" = Tregs_VAT_counts),
+                "genes" = list("exp_genes" = Tregs_VAT_exp_genes,
+                               "univ" = Tregs_VAT_univ,
+                               "TFs" = Tregs_VAT_TFs, 
+                               "TFs_ATAC" = Tregs_VAT_TFs_ATAC,
+                               "TFs_sel" = Tregs_VAT_sel_TFs),
+                "net" = list("ATAC" = list("edges" = Tregs_VAT_ATAC_edges,
+                                           "edges_str" = Tregs_VAT_ATAC_edges_str,
+                                           "sources" = Tregs_VAT_ATAC_sources,
+                                           "targets" = Tregs_VAT_ATAC_targets,
+                                           "reg_size" = Tregs_VAT_ATAC_reg_size,
+                                           "univ" = Tregs_VAT_ATAC_univ,
+                                           "edges_sel" = Tregs_VAT_ATAC_edges_sel,
+                                           "edges_sel_str" = Tregs_VAT_ATAC_edges_sel_str),
+                             "scMINER" = list("edges" = Tregs_VAT_SJ_TF_edges,
+                                              "sources" = Tregs_VAT_SJ_TF_sources,
+                                              "targets" = Tregs_VAT_SJ_TF_targets,
+                                              "reg_size" = Tregs_VAT_SJ_TF_reg_size,
+                                              "edges_sel" = Tregs_VAT_SJ_TF_edges_sel,
+                                              "edges_sel_str" = Tregs_VAT_SJ_TF_edges_sel_str),
+                             "GRNBoost2" = list("edges" = Tregs_VAT_GRNB2_TF_edges,
+                                                "sources" = Tregs_VAT_GRNB2_TF_sources,
+                                                "targets" = Tregs_VAT_GRNB2_TF_targets,
+                                                "reg_size" = Tregs_VAT_GRNB2_TF_reg_size,
+                                                "edges_sel" = Tregs_VAT_GRNB2_TF_edges_sel,
+                                                "edges_sel_str" = Tregs_VAT_GRNB2_TF_edges_sel_str),
+                             "GENIE3" = list("edges" = Tregs_VAT_GN3_TF_edges,
+                                             "sources" = Tregs_VAT_GN3_TF_sources,
+                                             "targets" = Tregs_VAT_GN3_TF_targets,
+                                             "edges_sel" = Tregs_VAT_GN3_TF_edges_sel,
+                                             "edges_sel_str" = Tregs_VAT_GN3_TF_edges_sel_str),
+                             "PIDC" = list("edges" = Tregs_VAT_PIDC_TF_edges,
+                                           "sources" = Tregs_VAT_PIDC_TF_sources,
+                                           "targets" = Tregs_VAT_PIDC_TF_targets,
+                                           "edges_sel" = Tregs_VAT_PIDC_TF_edges_sel,
+                                           "edges_sel_str" = Tregs_VAT_PIDC_TF_edges_sel_str),
+                             "Rand" = list("edges" = Tregs_VAT_rnd_TF_edges,
+                                           "sources" = Tregs_VAT_rnd_TF_sources,
+                                           "targets" = Tregs_VAT_rnd_TF_targets,
+                                           "reg_size" = Tregs_VAT_rnd_TF_reg_size,
+                                           "edges_sel" = Tregs_VAT_rnd_TF_edges_sel,
+                                           "edges_sel_str" = Tregs_VAT_rnd_TF_edges_sel_str)))
+```
+
+
+```{r}
+save_file = file.path(fold, 'proc_data.Rdata')
+save(TEX_int, TEX_prog, TEX_term, Tregs_Spleen, Tregs_VAT, file = save_file)
+```
+
+
+```{r}
+net = TEX_int_ATAC_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_int_ATAC_regulons = regulons
+
+net = TEX_int_SJ_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_int_SJ_regulons = regulons
+
+net = TEX_int_GRNB2_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_int_GRNB2_regulons = regulons
+
+
+net = TEX_prog_ATAC_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_prog_ATAC_regulons = regulons
+
+net = TEX_prog_SJ_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_prog_SJ_regulons = regulons
+
+net = TEX_prog_GRNB2_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_prog_GRNB2_regulons = regulons
+
+
+net = TEX_term_ATAC_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_term_ATAC_regulons = regulons
+
+net = TEX_term_SJ_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_term_SJ_regulons = regulons
+
+net = TEX_term_GRNB2_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+TEX_term_GRNB2_regulons = regulons
+
+
+net = Tregs_Spleen_ATAC_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+Tregs_Spleen_ATAC_regulons = regulons
+
+net = Tregs_Spleen_SJ_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+Tregs_Spleen_SJ_regulons = regulons
+
+net = Tregs_Spleen_GRNB2_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+Tregs_Spleen_GRNB2_regulons = regulons
+
+
+net = Tregs_VAT_ATAC_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+Tregs_VAT_ATAC_regulons = regulons
+
+net = Tregs_VAT_SJ_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+Tregs_VAT_SJ_regulons = regulons
+
+net = Tregs_VAT_GRNB2_TF_edges
+genes = unique(net$source)
+regulons = lapply(genes, function(gene) net$target[net$source == gene])
+names(regulons) = genes
+Tregs_VAT_GRNB2_regulons = regulons
+```
+
+
+```{r}
+save_file = file.path(fold, 'ATAC_regulons.Rdata')
+save(TEX_int_ATAC_regulons, TEX_prog_ATAC_regulons, TEX_term_ATAC_regulons, 
+     Tregs_Spleen_ATAC_regulons, Tregs_VAT_ATAC_regulons,
+     file = save_file)
+
+save_file = file.path(fold, 'SJ_regulons.Rdata')
+save(TEX_int_SJ_regulons, TEX_prog_SJ_regulons, TEX_term_SJ_regulons, 
+     Tregs_Spleen_SJ_regulons, Tregs_VAT_SJ_regulons,
+     file = save_file)
+
+save_file = file.path(fold, 'GRNB2_regulons.Rdata')
+save(TEX_int_GRNB2_regulons, TEX_prog_GRNB2_regulons, TEX_term_GRNB2_regulons, 
+     Tregs_Spleen_GRNB2_regulons, Tregs_VAT_GRNB2_regulons,
+     file = save_file)
+```
+
+

@@ -1,0 +1,403 @@
+---
+title: "NES_TF_compute"
+output: html_document
+date: "2024-08-27"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(DropletUtils)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(EnsDb.Mmusculus.v79)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pals)
+library(SingleR)
+library(pheatmap)
+library(igraph)
+library(ggraph)
+library(graphlayouts)
+library(ggforce)
+library(scDblFinder)
+library(anndata)
+library(reticulate)
+```
+
+
+```{r}
+inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_TF_GSEA.Rdata"
+load(inp_file)
+```
+
+
+
+```{r}
+get_ES <-
+  function(rank_profile = NULL,
+           use_genes = NULL,
+           weighted.score.type = 1) {
+    gene.list <- names(rank_profile)
+    correl.vector <- rank_profile
+    tag.indicator <-
+      sign(match(gene.list, use_genes, nomatch = 0))# notice that the sign is 0 (no tag) or 1 (tag)
+    no.tag.indicator <- 1 - tag.indicator
+    N <- length(gene.list)
+    Nh <- length(use_genes)
+    Nm <-  N - Nh
+    if (weighted.score.type == 0) {
+      correl.vector <- rep(1, N)
+    }
+    alpha <- weighted.score.type
+    correl.vector <- abs(correl.vector ** alpha)
+    sum.correl.tag    <- sum(correl.vector[tag.indicator == 1])
+    norm.tag    <- 1.0 / sum.correl.tag
+    norm.no.tag <- 1.0 / Nm
+    RES <-
+      cumsum(tag.indicator * correl.vector * norm.tag - no.tag.indicator * norm.no.tag)
+    max.ES <- max(RES)
+    min.ES <- min(RES)
+    if (isTRUE(max.ES > -min.ES)) {
+      #      ES <- max.ES
+      ES <- signif(max.ES, digits = 5)
+      arg.ES <- which.max(RES)
+    } else {
+      #      ES <- min.ES
+      ES <- signif(min.ES, digits = 5)
+      arg.ES <- which.min(RES)
+    }
+    return(list(
+      ES = ES,
+      arg.ES = arg.ES,
+      RES = RES,
+      indicator = tag.indicator
+    ))
+  }
+```
+
+
+```{r}
+sample_n = 10000
+smpl = "GSM6858449"
+
+TFs = names(GSEA_scMINER[[smpl]])
+
+TFs_pos_n = sapply(TFs, function(tf) length(GSEA_scMINER[[smpl]][[tf]]$pos$gene_set))
+TFs_neg_n = sapply(TFs, function(tf) length(GSEA_scMINER[[smpl]][[tf]]$neg$gene_set))
+TFs_all_n = sapply(TFs, function(tf) length(GSEA_scMINER[[smpl]][[tf]]$all$gene_set))
+
+rand_ES_pos = lapply(TFs, function(tf) {
+  rank_profile = GSEA_scMINER[[smpl]][[tf]]$rank_profile
+  sz = TFs_pos_n[tf]
+  rand_smpls = lapply(1:sample_n, function(i) sample(x = names(rank_profile), size = sz, replace = FALSE))
+  rand_ES = unlist(lapply(rand_smpls, function(genes) {ES_res = get_ES(rank_profile, genes); return(ES_res$ES)}))
+  return(rand_ES)
+})
+names(rand_ES_pos) <- TFs
+
+rand_ES_neg = lapply(TFs, function(tf) {
+  rank_profile = GSEA_scMINER[[smpl]][[tf]]$rank_profile
+  sz = TFs_neg_n[tf]
+  rand_smpls = lapply(1:sample_n, function(i) sample(x = names(rank_profile), size = sz, replace = FALSE))
+  rand_ES = unlist(lapply(rand_smpls, function(genes) {ES_res = get_ES(rank_profile, genes); return(ES_res$ES)}))
+  return(rand_ES)
+})
+names(rand_ES_neg) <- TFs
+
+rand_ES_all = lapply(TFs, function(tf) {
+  rank_profile = GSEA_scMINER[[smpl]][[tf]]$rank_profile
+  sz = TFs_all_n[tf]
+  rand_smpls = lapply(1:sample_n, function(i) sample(x = names(rank_profile), size = sz, replace = FALSE))
+  rand_ES = unlist(lapply(rand_smpls, function(genes) {ES_res = get_ES(rank_profile, genes); return(ES_res$ES)}))
+  return(rand_ES)
+})
+names(rand_ES_all) <- TFs
+```
+
+
+```{r}
+#https://www.pathwaycommons.org/guide/primers/data_analysis/gsea/
+NES_scMINER_pos = sapply(TFs, function(tf) {
+  ES = GSEA_scMINER[[smpl]][[tf]]$pos$ES;
+  if (ES >= 0) {ES_rand = mean(rand_ES_pos[[tf]][rand_ES_pos[[tf]] >= 0])}
+  else {ES_rand = mean(rand_ES_pos[[tf]][rand_ES_pos[[tf]] < 0])}
+  return(ES/ES_rand*sign(ES))
+})
+
+NES_scMINER_neg = sapply(TFs, function(tf) {
+  ES = GSEA_scMINER[[smpl]][[tf]]$neg$ES;
+  if (ES >= 0) {ES_rand = mean(rand_ES_neg[[tf]][rand_ES_neg[[tf]] >= 0])}
+  else {ES_rand = mean(rand_ES_neg[[tf]][rand_ES_neg[[tf]] < 0])}
+  return(ES/ES_rand*sign(ES))
+})
+
+NES_GN3 = sapply(TFs, function(tf) {
+  ES = GSEA_GN3[[smpl]][[tf]]$all$ES;
+  if (ES >= 0) {ES_rand = mean(rand_ES_all[[tf]][rand_ES_all[[tf]] >= 0])}
+  else {ES_rand = mean(rand_ES_all[[tf]][rand_ES_all[[tf]] < 0])}
+  return(ES/ES_rand*sign(ES))
+})
+
+NES_GRNB2 = sapply(TFs, function(tf) {
+  ES = GSEA_GRNB2[[smpl]][[tf]]$all$ES;
+  if (ES >= 0) {ES_rand = mean(rand_ES_all[[tf]][rand_ES_all[[tf]] >= 0])}
+  else {ES_rand = mean(rand_ES_all[[tf]][rand_ES_all[[tf]] < 0])}
+  return(ES/ES_rand*sign(ES))
+})
+
+NES_PIDC = sapply(TFs, function(tf) {
+  ES = GSEA_PIDC[[smpl]][[tf]]$all$ES;
+  if (ES >= 0) {ES_rand = mean(rand_ES_all[[tf]][rand_ES_all[[tf]] >= 0])}
+  else {ES_rand = mean(rand_ES_all[[tf]][rand_ES_all[[tf]] < 0])}
+  return(ES/ES_rand*sign(ES))
+})
+
+```
+
+
+```{r}
+outp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_TF_GSEA_NES.Rdata"
+save(file = outp_file, NES_scMINER_pos, NES_scMINER_neg, NES_GN3, NES_GRNB2, NES_PIDC)
+```
+
+
+```{r}
+library(fgsea)
+```
+
+
+
+```{r}
+smpl = "GSM6858449"
+
+TFs = names(GSEA_scMINER[[smpl]])
+
+rank_profiles <- lapply(TFs, function(tf) {
+  rank_profile = GSEA_scMINER[[smpl]][[tf]]$rank_profile
+  return(rank_profile)
+})
+names(rank_profiles) <- TFs
+  
+GS_scMINER_pos = sapply(TFs, function(tf) GSEA_scMINER[[smpl]][[tf]]$pos$gene_set)
+GS_scMINER_neg = sapply(TFs, function(tf) GSEA_scMINER[[smpl]][[tf]]$neg$gene_set)
+GS_GN3 = sapply(TFs, function(tf) GSEA_GN3[[smpl]][[tf]]$all$gene_set)
+GS_GRNB2 = sapply(TFs, function(tf) GSEA_GRNB2[[smpl]][[tf]]$all$gene_set)
+GS_PIDC = sapply(TFs, function(tf) GSEA_PIDC[[smpl]][[tf]]$all$gene_set)
+
+
+```
+
+
+```{r}
+NES_scMINER_pos = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_scMINER_pos[tf], stats = rank_profiles[[tf]], eps = 0);
+  return(fgseaRes$NES)
+})
+
+NES_scMINER_neg = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_scMINER_neg[tf], stats = rank_profiles[[tf]], eps = 0);
+  return(fgseaRes$NES)
+})
+
+NES_GN3 = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_GN3[tf], stats = rank_profiles[[tf]], eps = 0);
+  return(fgseaRes$NES)
+})
+
+NES_GRNB2 = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_GRNB2[tf], stats = rank_profiles[[tf]], eps = 0);
+  return(fgseaRes$NES)
+})
+
+NES_PIDC = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_PIDC[tf], stats = rank_profiles[[tf]], eps = 0);
+  return(fgseaRes$NES)
+})
+```
+
+
+```{r}
+sum(NES_scMINER_neg[!is.na(NES_scMINER_neg)] > 0)
+```
+
+
+```{r}
+mean(NES_PIDC[!is.na(NES_PIDC)])
+mean(abs(NES_scMINER_pos[!is.na(NES_scMINER_pos)]))
+```
+
+
+
+
+```{r}
+pv_scMINER_pos = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_scMINER_pos[tf], stats = rank_profiles[[tf]], eps = 0, nPermSimple = 10000);
+  return(fgseaRes$padj)
+})
+
+pv_scMINER_neg = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_scMINER_neg[tf], stats = rank_profiles[[tf]], eps = 0, nPermSimple = 10000);
+  return(fgseaRes$padj)
+})
+
+pv_GN3 = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_GN3[tf], stats = rank_profiles[[tf]], eps = 0, nPermSimple = 10000);
+  return(fgseaRes$padj)
+})
+
+pv_GRNB2 = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_GRNB2[tf], stats = rank_profiles[[tf]], eps = 0, nPermSimple = 10000);
+  return(fgseaRes$padj)
+})
+
+pv_PIDC = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_PIDC[tf], stats = rank_profiles[[tf]], eps = 0, nPermSimple = 10000);
+  return(fgseaRes$padj)
+})
+```
+
+```{r}
+outp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_TF_GSEA_NES_pv_fgsea.Rdata"
+save(file = outp_file, NES_scMINER_pos, NES_scMINER_neg, NES_GN3, NES_GRNB2, NES_PIDC, 
+     pv_scMINER_pos, pv_scMINER_neg, pv_GN3, pv_GRNB2, pv_PIDC)
+```
+
+
+```{r}
+fgsea_scMINER_pos = sapply(TFs, function(tf) {
+  fgseaRes <- fgsea(pathways = GS_scMINER_pos[tf], stats = rank_profiles[[tf]], eps = 0, nPermSimple = 100);
+  return(fgseaRes)
+})
+df = as.data.frame(t(fgsea_scMINER_pos))
+```
+
+
+```{r}
+#plotEnrichment
+#plotEnrichmentData
+tf = TFs[1]
+tf = "EGR2"
+stats = rank_profiles[[tf]]
+selectedStats = which(names(stats) %in% GS_scMINER_pos[[tf]]) 
+gseaRes = calcGseaStat(stats, selectedStats, returnAllExtremes = TRUE)
+#calcGseaStat
+```
+
+
+
+
+```{r, fig.width = 5, fig.height = 6}
+NES <- as.data.frame(Reduce(cbind, list(NES_scMINER_pos, NES_scMINER_neg, NES_GN3, NES_GRNB2, NES_PIDC)))
+colnames(NES) <- c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC")
+NES[!is.nan(rowSums(as.matrix(NES))),]
+
+options(scipen = 100, digits = 2)
+
+data <- abs(NES)
+data = data[rowSums(is.na(data)) == 0,]
+
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(-1, 0, 1, 2, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[-c(1, 8, 9, 10), ]
+
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  #theme_linedraw(base_size = 16) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Method',
+                    values = c("scMINER_pos" = "red", "scMINER_neg" = "navy", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("|NES|") + 
+  ggtitle(paste0("GSEA, NES, ", "TF")) + theme(legend.position = "none") + 
+  scale_x_discrete(guide = guide_axis(angle = 45),
+                   labels = c("scMINER_pos" = "scMINER\npositive", 
+                              "scMINER_neg" = "scMINER\nnegative", 
+                              "GENIE3" = "GENIE3", 
+                              "GRNBoost2" = "GRNBoost2", 
+                              "PIDC" = "PIDC"))
+p
+```
+
+
+```{r, fig.width = 5, fig.height = 6}
+pv <- as.data.frame(Reduce(cbind, list(pv_scMINER_pos, pv_scMINER_neg, pv_GN3, pv_GRNB2, pv_PIDC)))
+colnames(pv) <- c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC")
+pv[!is.nan(rowSums(as.matrix(pv))),]
+
+options(scipen = 100, digits = 2)
+
+data <- -log(pv)
+data = data[rowSums(is.na(data)) == 0,]
+
+df = as.data.frame(t(sapply(1:5, 
+                            function(i) {x = data[,i]; 
+                            w_test = wilcox.test(x, conf.level=0.95, conf.int=TRUE); 
+                            outp = c(pos = i, estimate = w_test$estimate[[1]], CI1 = w_test$conf.int[1], CI2 = w_test$conf.int[2])
+                            return(outp)})))
+df$method = factor(x = c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC"), levels = c("scMINER_pos", "scMINER_neg", "GENIE3", "GRNBoost2", "PIDC"))
+bar_start = 1.05*max(df$CI2)
+bar_inc = 0.05*bar_start
+stat.test <- reshape::melt(data, variable_name = "method") %>% wilcox_test(value ~ method, paired = TRUE)
+stat.test <- stat.test %>% add_xy_position(x = "method")
+stat.test$y.position = bar_start + c(-1, 0, 1, 2, 4, 5, 6, 7, 8, 9)*bar_inc
+stat.test <- stat.test[-c(1, 8, 9, 10), ]
+
+p <- ggplot(df, aes(x=method, y=estimate)) +
+  geom_bar(aes(fill=method), stat = "identity") +
+  geom_errorbar(aes(ymin = CI1, ymax = CI2), width = 0.1) + 
+  #theme_linedraw(base_size = 16) + 
+  theme_classic(base_size = 16) + 
+  stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) +
+  scale_fill_manual(name = 'Method',
+                    values = c("scMINER_pos" = "red", "scMINER_neg" = "navy", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  xlab("") + ylab("-log(pv)") + 
+  ggtitle(paste0("GSEA, pv, ", "TF")) + theme(legend.position = "none") + 
+  scale_x_discrete(guide = guide_axis(angle = 45),
+                   labels = c("scMINER_pos" = "scMINER\npositive", 
+                              "scMINER_neg" = "scMINER\nnegative", 
+                              "GENIE3" = "GENIE3", 
+                              "GRNBoost2" = "GRNBoost2", 
+                              "PIDC" = "PIDC"))
+p
+```
+
+
+```{r}
+options(scipen = 1)
+sumlog(c(pv_scMINER_pos[i], pv_scMINER_neg[i]))$p
+pv_merged = sapply(TFs, function(tf) sumlog(c(pv_scMINER_pos[tf], pv_scMINER_neg[tf]))$p)
+```
+

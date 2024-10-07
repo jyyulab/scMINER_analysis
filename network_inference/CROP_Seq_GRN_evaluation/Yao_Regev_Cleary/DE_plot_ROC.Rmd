@@ -1,0 +1,878 @@
+---
+title: "DE_plot_ROC"
+output: html_document
+date: "2024-06-05"
+---
+
+
+```{r}
+rm(list = ls())
+```
+
+```{r}
+set.seed(1) 
+```
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pROC)
+library(gsubfn)
+library(PRROC)
+```
+
+
+```{r}
+save_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/results"
+sample3 = "GSM6858449"
+ref_type = "NT"
+```
+
+
+```{r}
+inp_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/DE_res_GSM6858449_NT.Rdata"
+load(inp_file)
+```
+
+
+```{r}
+net_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_SIG_net.Rdata"
+load(net_file)
+```
+
+
+```{r}
+load("/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/tf_sigs_hg.RData")
+only_sig_genes = tf_sigs$geneSymbol[tf_sigs$funcType == "SIG"]
+only_tf_genes = tf_sigs$geneSymbol[tf_sigs$funcType == "TF"]
+```
+
+
+```{r}
+#logFC_th = 0.2
+#pv_th = 0.01
+#DE_genes_res = lapply(names(DE_res), function(target) {ids1 = abs(DE_res[[target]][[target]]$logFC.NT) > logFC_th;
+#  ids2 = abs(DE_res[[target]][[target]]$p.value) < pv_th;
+#  ids = ids1 & ids2;
+#  DE_genes = rownames(DE_res[[target]][[target]])[ids];
+#  return(DE_genes)
+#  })
+#names(DE_genes_res) <- names(DE_res)
+
+logFC_th = 0.25
+DE_genes_res = lapply(names(DE_res), function(target) {ids = abs(DE_res[[target]][[target]]$logFC.NT) > logFC_th;
+  DE_genes = rownames(DE_res[[target]][[target]])[ids];
+  return(DE_genes)
+  })
+names(DE_genes_res) <- names(DE_res)
+
+sig_sources = intersect(names(DE_genes_res), only_sig_genes)
+sig_true_edges_str = unname(unlist(sapply(sig_sources, function(gene) paste(gene, DE_genes_res[[gene]], sep = '-'))))
+```
+
+
+```{r}
+sig_pred_edges_str = paste(net3_SJ_NT_SIG_edges_MI$source, net3_SJ_NT_SIG_edges_MI$target, sep = '-')
+```
+
+
+```{r}
+roc_SJ <- roc(sig_pred_edges_str %in% sig_true_edges_str, 1:length(sig_pred_edges_str), direction = ">")
+prc_SJ = pr.curve(scores.class0 = length(sig_pred_edges_str):1, 
+                  weights.class0 = sig_pred_edges_str %in% sig_true_edges_str, 
+                  sorted = TRUE, curve = TRUE)
+```
+
+```{r}
+rand_edges_str = sample(x = sig_pred_edges_str, size = length(sig_pred_edges_str), replace = FALSE)
+
+#all_net_genes = unique(c(net3_SJ_NT_SIG_edges_MI$source, net3_SJ_NT_SIG_edges_MI$target))
+#t = sample(x = all_net_genes, size = length(sig_pred_edges_str), replace = TRUE)
+#s = sample(x = all_net_genes, size = length(sig_pred_edges_str), replace = TRUE)
+#sig_pred_edges_str = paste(t, s, sep = '-')
+
+roc_rand <- roc(rand_edges_str %in% sig_true_edges_str, 1:length(rand_edges_str), direction = ">")
+prc_rand = pr.curve(scores.class0 = length(rand_edges_str):1, 
+                  weights.class0 = rand_edges_str %in% sig_true_edges_str, 
+                  sorted = TRUE, curve = TRUE)
+```
+
+
+```{r}
+T = 1000
+k_end = length(sig_pred_edges_str)
+k_vals = seq(T,k_end, by=T)
+tp_scMINER = sapply(k_vals, function(k){return(sum(sig_pred_edges_str[1:k] %in% sig_true_edges_str))})
+tp_rand = sapply(k_vals, function(k){return(sum(rand_edges_str[1:k] %in% sig_true_edges_str))})
+epr <- tp_scMINER/tp_rand
+```
+
+
+```{r}
+df = data.frame(k = k_vals,
+                scMINER = tp_scMINER,
+                Random = tp_rand)
+df = melt(df, id = 'k')
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = k, y = value, color = variable)) + geom_path(size = 1) +
+  scale_color_manual(name = 'Model',
+                     labels = c("scMINER", "Random"),
+                     values = c("scMINER" = "red", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + 
+  xlab('# top ranked edges (k)') + ylab('# true positive edges') + 
+  ggtitle("True positive redictions for SIG targets") +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.3*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, "SIG_TP_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, "SIG_TP_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r}
+AUPRCR = prc_SJ$auc.integral/prc_rand$auc.integral
+```
+
+
+
+```{r}
+df = data.frame(k = k_vals,
+                EPR = epr)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+#p <- ggplot(df[-c(1,2,3),], aes(x = k, y = EPR)) + geom_path(size = 1, color = "red") +
+p <- ggplot(df, aes(x = k, y = EPR)) + geom_path(size = 1, color = "red") +
+  #geom_segment(aes(x = k, y = 1, xend = max(df$k), yend = 1), lty = "dashed", color = "gray50") +
+  geom_hline(yintercept = 1, size = 1, color = "gray50", lty = "dashed") + 
+  theme_linedraw(base_size = 16) + 
+  xlab("Edge rank") + ylab("EPR") + 
+  ggtitle("Early precision ratio (EPR) of SIG targets") +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = max(k_vals)
+y_range = max(epr)
+x_t = 0.7*x_range
+y_t = 25
+x_delta = 0.27*x_range
+y_delta = 1.5
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "AUPRC ratio", color = "black", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = round(AUPRCR, 2), color = "black", size = 5)
+
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, "SIG_EPR_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, "SIG_EPR_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")",sep = "")), 
+                     limits = c("scMINER", "Random"),
+                     values = c("scMINER" = "red", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + 
+  xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste0("SIG, all edges, AUC=", round(roc_SJ$auc, 2))) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.3*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+#p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Network", color = "black", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+#p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+#p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, "SIG_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, "SIG_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r}
+prc_SJ$auc.integral/prc_rand$auc.integral
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+df = data.frame(x = prc_SJ$curve[,1], 
+                 y = prc_SJ$curve[,2])
+
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(size = 1) +
+  theme_linedraw(base_size = 16) + 
+  xlab("Precision") + ylab("Recall") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle("SIG, all edges, PRC") +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.3*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+gene = "IFNGR2"
+true_targets = DE_genes_res[[gene]]
+pred_targets = net3_SJ_NT_SIG_edges_MI$target[net3_SJ_NT_SIG_edges_MI$source == gene]
+roc_SJ <- roc(pred_targets %in% true_targets, 1:length(pred_targets), direction = ">")
+
+rand_edges = sample(x = pred_targets, size = length(pred_targets), replace = FALSE)
+roc_rand <- roc(rand_edges %in% true_targets, 1:length(rand_edges), direction = ">")
+```
+
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")",sep = "")), 
+                     limits = c("scMINER", "Random"),
+                     values = c("scMINER" = "red", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + 
+  xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste0("SIG, ", gene, ", AUC=", round(roc_SJ$auc, 2))) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.3*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+#p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Network", color = "black", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+#p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+#p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_ROC_", gene, ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_ROC_", gene, ".pdf"))
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r}
+gene = "IL1B"
+true_targets = DE_genes_res[[gene]]
+pred_targets = net3_SJ_NT_SIG_edges_MI$target[net3_SJ_NT_SIG_edges_MI$source == gene]
+roc_SJ <- roc(pred_targets %in% true_targets, 1:length(pred_targets), direction = ">")
+
+rand_edges = sample(x = pred_targets, size = length(pred_targets), replace = FALSE)
+roc_rand <- roc(rand_edges %in% true_targets, 1:length(rand_edges), direction = ">")
+```
+
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")",sep = "")), 
+                     limits = c("scMINER", "Random"),
+                     values = c("scMINER" = "red", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + 
+  xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste0("SIG, ", gene, ", AUC=", round(roc_SJ$auc, 2))) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.55*x_range
+y_t = 0.2*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+#p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Network", color = "black", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+#p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+#p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+#p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("SIG_ROC_", gene, ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("SIG_ROC_", gene, ".pdf"))
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r}
+gene = "IL1B"
+true_targets = DE_genes_res[[gene]]
+pred_targets = net3_SJ_NT_SIG_edges_MI$target[net3_SJ_NT_SIG_edges_MI$source == gene]
+roc_SJ <- roc(pred_targets %in% true_targets, 1:length(pred_targets), direction = ">")
+
+rand_edges = sample(x = pred_targets, size = length(pred_targets), replace = FALSE)
+roc_rand <- roc(rand_edges %in% true_targets, 1:length(rand_edges), direction = ">")
+```
+
+
+
+
+
+```{r}
+tf_net_file = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/NT_TF_net.Rdata"
+load(tf_net_file)
+```
+
+
+```{r}
+tf_sources = intersect(names(DE_genes_res), only_tf_genes)
+tf_true_edges_str = unname(unlist(sapply(tf_sources, function(gene) paste(gene, DE_genes_res[[gene]], sep = '-'))))
+```
+
+
+```{r}
+tf_SJ_pred_edges_str = paste(net3_SJ_NT_TF_edges_red$source, net3_SJ_NT_TF_edges_red$target, sep = '-')
+tf_GRNB2_pred_edges_str = paste(net3_GRNB2_NT_TF_edges_red$source, net3_GRNB2_NT_TF_edges_red$target, sep = '-')
+tf_GN3_pred_edges_str = paste(net3_GN3_NT_TF_edges_red$source, net3_GN3_NT_TF_edges_red$target, sep = '-')
+tf_PIDC_pred_edges_str = paste(net3_PIDC_NT_TF_edges_red$source, net3_PIDC_NT_TF_edges_red$target, sep = '-')
+tf_rand_edges_str = sample(x = unique(sort(c(tf_SJ_pred_edges_str, tf_GRNB2_pred_edges_str, tf_GN3_pred_edges_str, tf_PIDC_pred_edges_str))), 
+                           size = length(tf_SJ_pred_edges_str), replace = FALSE)
+```
+
+
+```{r}
+roc_SJ <- roc(tf_SJ_pred_edges_str %in% tf_true_edges_str, 1:length(tf_SJ_pred_edges_str), direction = ">")
+roc_GN3 <- roc(tf_GN3_pred_edges_str %in% tf_true_edges_str, 1:length(tf_GN3_pred_edges_str), direction = ">")
+roc_GRNB2 <- roc(tf_GRNB2_pred_edges_str %in% tf_true_edges_str, 1:length(tf_GRNB2_pred_edges_str), direction = ">")
+roc_PIDC <- roc(tf_PIDC_pred_edges_str %in% tf_true_edges_str, 1:length(tf_PIDC_pred_edges_str), direction = ">")
+roc_rand <- roc(tf_rand_edges_str %in% tf_true_edges_str, 1:length(tf_rand_edges_str), direction = ">")
+```
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_GN3$specificities, 
+                 y = roc_GN3$sensitivities,
+                 lab = rep("GENIE3", length(roc_GN3$sensitivities )))
+df3 = data.frame(x = 1-roc_GRNB2$specificities, 
+                 y = roc_GRNB2$sensitivities,
+                 lab = rep("GRNBoost2", length(roc_GRNB2$sensitivities )))
+df4 = data.frame(x = 1-roc_PIDC$specificities, 
+                 y = roc_PIDC$sensitivities,
+                 lab = rep("PIDC", length(roc_PIDC$sensitivities )))
+df5 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2, df3, df4, df5)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+     scale_color_manual(name = 'Models',
+                        labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")",sep = ""), 
+                                   paste("GENIE3", " (AUROC=", as.character(round(auc(roc_GN3),3)), ")",sep = ""), 
+                                   paste("GRNBoost2", " (AUROC=", as.character(round(auc(roc_GRNB2),3)), ")",sep = ""), 
+                                   paste("PIDC", " (AUROC=", as.character(round(auc(roc_PIDC),3)), ")",sep = ""),
+                                   paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")",sep = "")), 
+                        limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                        values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+     theme_linedraw(base_size = 16) + 
+     xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+     ggtitle(paste("CROP-Seq, TF, ROC (all edges)", sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.4*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_GN3),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(roc_GRNB2),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(roc_PIDC),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, "TF_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, "TF_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r}
+gene = "EGR2"
+true_targets = DE_genes_res[[gene]]
+pred_targets_SJ = net3_SJ_NT_TF_edges_red$target[net3_SJ_NT_TF_edges_red$source == gene]
+pred_targets_GN3 = net3_GN3_NT_TF_edges_red$target[net3_GN3_NT_TF_edges_red$source == gene]
+pred_targets_GRNB2 = net3_GRNB2_NT_TF_edges_red$target[net3_GRNB2_NT_TF_edges_red$source == gene]
+pred_targets_PIDC = net3_PIDC_NT_TF_edges_red$target[net3_PIDC_NT_TF_edges_red$source == gene]
+pred_targets_rand = sample(x = unique(sort(c(pred_targets_SJ, pred_targets_GN3, pred_targets_GRNB2, pred_targets_PIDC))), 
+                           size = length(pred_targets_SJ), replace = FALSE)
+
+roc_SJ <- roc(pred_targets_SJ %in% true_targets, 1:length(pred_targets_SJ), direction = ">")
+roc_GN3 <- roc(pred_targets_GN3 %in% true_targets, 1:length(pred_targets_GN3), direction = ">")
+roc_GRNB2 <- roc(pred_targets_GRNB2 %in% true_targets, 1:length(pred_targets_GRNB2), direction = ">")
+roc_PIDC <- roc(pred_targets_PIDC %in% true_targets, 1:length(pred_targets_PIDC), direction = ">")
+roc_rand <- roc(pred_targets_rand %in% true_targets, 1:length(pred_targets_rand), direction = ">")
+```
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_GN3$specificities, 
+                 y = roc_GN3$sensitivities,
+                 lab = rep("GENIE3", length(roc_GN3$sensitivities )))
+df3 = data.frame(x = 1-roc_GRNB2$specificities, 
+                 y = roc_GRNB2$sensitivities,
+                 lab = rep("GRNBoost2", length(roc_GRNB2$sensitivities )))
+df4 = data.frame(x = 1-roc_PIDC$specificities, 
+                 y = roc_PIDC$sensitivities,
+                 lab = rep("PIDC", length(roc_PIDC$sensitivities )))
+df5 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2, df3, df4, df5)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+     scale_color_manual(name = 'Models',
+                        labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")", sep = ""), 
+                                   paste("GENIE3", " (AUROC=", as.character(round(auc(roc_GN3),3)), ")", sep = ""), 
+                                   paste("GRNBoost2", " (AUROC=", as.character(round(auc(roc_GRNB2),3)), ")", sep = ""), 
+                                   paste("PIDC", " (AUROC=", as.character(round(auc(roc_PIDC),3)), ")", sep = ""),
+                                   paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")", sep = "")), 
+                        limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                        values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+     theme_linedraw(base_size = 16) + 
+     xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+     ggtitle(paste("CROP-Seq, TF, ROC, ", gene, sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.3*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_GN3),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(roc_GRNB2),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(roc_PIDC),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_ROC_", gene, ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_ROC_", gene, ".pdf"))
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r}
+gene = "JUN"
+true_targets = DE_genes_res[[gene]]
+pred_targets_SJ = net3_SJ_NT_TF_edges_red$target[net3_SJ_NT_TF_edges_red$source == gene]
+pred_targets_GN3 = net3_GN3_NT_TF_edges_red$target[net3_GN3_NT_TF_edges_red$source == gene]
+pred_targets_GRNB2 = net3_GRNB2_NT_TF_edges_red$target[net3_GRNB2_NT_TF_edges_red$source == gene]
+pred_targets_PIDC = net3_PIDC_NT_TF_edges_red$target[net3_PIDC_NT_TF_edges_red$source == gene]
+pred_targets_rand = sample(x = unique(sort(c(pred_targets_SJ, pred_targets_GN3, pred_targets_GRNB2, pred_targets_PIDC))), 
+                           size = length(pred_targets_SJ), replace = FALSE)
+
+roc_SJ <- roc(pred_targets_SJ %in% true_targets, 1:length(pred_targets_SJ), direction = ">")
+roc_GN3 <- roc(pred_targets_GN3 %in% true_targets, 1:length(pred_targets_GN3), direction = ">")
+roc_GRNB2 <- roc(pred_targets_GRNB2 %in% true_targets, 1:length(pred_targets_GRNB2), direction = ">")
+roc_PIDC <- roc(pred_targets_PIDC %in% true_targets, 1:length(pred_targets_PIDC), direction = ">")
+roc_rand <- roc(pred_targets_rand %in% true_targets, 1:length(pred_targets_rand), direction = ">")
+```
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_GN3$specificities, 
+                 y = roc_GN3$sensitivities,
+                 lab = rep("GENIE3", length(roc_GN3$sensitivities )))
+df3 = data.frame(x = 1-roc_GRNB2$specificities, 
+                 y = roc_GRNB2$sensitivities,
+                 lab = rep("GRNBoost2", length(roc_GRNB2$sensitivities )))
+df4 = data.frame(x = 1-roc_PIDC$specificities, 
+                 y = roc_PIDC$sensitivities,
+                 lab = rep("PIDC", length(roc_PIDC$sensitivities )))
+df5 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2, df3, df4, df5)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")", sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(roc_GN3),3)), ")", sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(roc_GRNB2),3)), ")", sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(roc_PIDC),3)), ")", sep = ""),
+                                paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")", sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + 
+  xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste("CROP-Seq, TF, ROC, ", gene, sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.3*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_GN3),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(roc_GRNB2),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(roc_PIDC),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_ROC_", gene, ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_ROC_", gene, ".pdf"))
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r}
+gene = "ZC3H13"
+true_targets = DE_genes_res[[gene]]
+pred_targets_SJ = net3_SJ_NT_TF_edges_red$target[net3_SJ_NT_TF_edges_red$source == gene]
+pred_targets_GN3 = net3_GN3_NT_TF_edges_red$target[net3_GN3_NT_TF_edges_red$source == gene]
+pred_targets_GRNB2 = net3_GRNB2_NT_TF_edges_red$target[net3_GRNB2_NT_TF_edges_red$source == gene]
+pred_targets_PIDC = net3_PIDC_NT_TF_edges_red$target[net3_PIDC_NT_TF_edges_red$source == gene]
+pred_targets_rand = sample(x = unique(sort(c(pred_targets_SJ, pred_targets_GN3, pred_targets_GRNB2, pred_targets_PIDC))), 
+                           size = length(pred_targets_SJ), replace = FALSE)
+
+roc_SJ <- roc(pred_targets_SJ %in% true_targets, 1:length(pred_targets_SJ), direction = ">")
+roc_GN3 <- roc(pred_targets_GN3 %in% true_targets, 1:length(pred_targets_GN3), direction = ">")
+roc_GRNB2 <- roc(pred_targets_GRNB2 %in% true_targets, 1:length(pred_targets_GRNB2), direction = ">")
+roc_PIDC <- roc(pred_targets_PIDC %in% true_targets, 1:length(pred_targets_PIDC), direction = ">")
+roc_rand <- roc(pred_targets_rand %in% true_targets, 1:length(pred_targets_rand), direction = ">")
+```
+
+```{r}
+df1 = data.frame(x = 1-roc_SJ$specificities, 
+                 y = roc_SJ$sensitivities,
+                 lab = rep("scMINER", length(roc_SJ$sensitivities )))
+df2 = data.frame(x = 1-roc_GN3$specificities, 
+                 y = roc_GN3$sensitivities,
+                 lab = rep("GENIE3", length(roc_GN3$sensitivities )))
+df3 = data.frame(x = 1-roc_GRNB2$specificities, 
+                 y = roc_GRNB2$sensitivities,
+                 lab = rep("GRNBoost2", length(roc_GRNB2$sensitivities )))
+df4 = data.frame(x = 1-roc_PIDC$specificities, 
+                 y = roc_PIDC$sensitivities,
+                 lab = rep("PIDC", length(roc_PIDC$sensitivities )))
+df5 = data.frame(x = 1-roc_rand$specificities, 
+                 y = roc_rand$sensitivities,
+                 lab = rep("Random", length(roc_rand$sensitivities )))
+df = rbind(df1, df2, df3, df4, df5)
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+p <- ggplot(df, aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(roc_SJ),3)), ")", sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(roc_GN3),3)), ")", sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(roc_GRNB2),3)), ")", sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(roc_PIDC),3)), ")", sep = ""),
+                                paste("Random", " (AUROC=", as.character(round(auc(roc_rand),3)), ")", sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + 
+  xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste("CROP-Seq, TF, ROC, ", gene, sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.4*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(roc_SJ),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(roc_GN3),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(roc_GRNB2),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(roc_PIDC),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(roc_rand),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("TF_ROC_", gene, ".png"))
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("TF_ROC_", gene, ".pdf"))
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```

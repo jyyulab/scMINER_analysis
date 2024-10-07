@@ -1,0 +1,1716 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-06-03"
+---
+
+
+```{r}
+rm(list = ls())
+
+fold = "/Users/shladysh/lab_work/scMINER/figures/ATAC_GRN_evaluation/analysis/global_network_analysis"
+dir.create(fold)
+inp_file = "/Users/shladysh/lab_work/scMINER/figures/ATAC_GRN_evaluation/analysis/read_and_proccess_networks/proc_data.Rdata"
+load(inp_file)
+```
+
+
+```{r}
+#TEX_int, Effector-like T-cells, Teff-like
+#TEX_prog, Exhaustion progenitor T cells, Tpex
+#TEX_term, Terminal exhausted T cells, Tex
+```
+
+
+```{r}
+a = TEX_int$net$ATAC$edges_sel
+b = TEX_int$net$scMINER$edges_sel
+c = TEX_int$net$GENIE3$edges_sel
+d = TEX_int$net$GRNBoost2$edges_sel
+e = TEX_int$net$PIDC$edges_sel
+f = TEX_int$net$Rand$edges_sel
+min_t_vals = sapply(TEX_int$genes$TFs_sel, function(tf) {min_t = min(sum(a$source == tf), sum(b$source == tf), sum(c$source == tf), sum(d$source == tf), sum(e$source == tf), sum(f$source == tf)); return(min_t)})
+TEX_int_k = sum(min_t_vals)
+
+a = TEX_prog$net$ATAC$edges_sel
+b = TEX_prog$net$scMINER$edges_sel
+c = TEX_prog$net$GENIE3$edges_sel
+d = TEX_prog$net$GRNBoost2$edges_sel
+e = TEX_prog$net$PIDC$edges_sel
+f = TEX_prog$net$Rand$edges_sel
+min_t_vals = sapply(TEX_prog$genes$TFs_sel, function(tf) {min_t = min(sum(a$source == tf), sum(b$source == tf), sum(c$source == tf), sum(d$source == tf), sum(e$source == tf), sum(f$source == tf)); return(min_t)})
+TEX_prog_k = sum(min_t_vals)
+
+a = TEX_term$net$ATAC$edges_sel
+b = TEX_term$net$scMINER$edges_sel
+c = TEX_term$net$GENIE3$edges_sel
+d = TEX_term$net$GRNBoost2$edges_sel
+e = TEX_term$net$PIDC$edges_sel
+f = TEX_term$net$Rand$edges_sel
+min_t_vals = sapply(TEX_term$genes$TFs_sel, function(tf) {min_t = min(sum(a$source == tf), sum(b$source == tf), sum(c$source == tf), sum(d$source == tf), sum(e$source == tf), sum(f$source == tf)); return(min_t)})
+TEX_term_k = sum(min_t_vals)
+
+a = Tregs_Spleen$net$ATAC$edges_sel
+b = Tregs_Spleen$net$scMINER$edges_sel
+c = Tregs_Spleen$net$GENIE3$edges_sel
+d = Tregs_Spleen$net$GRNBoost2$edges_sel
+e = Tregs_Spleen$net$PIDC$edges_sel
+f = Tregs_Spleen$net$Rand$edges_sel
+min_t_vals = sapply(Tregs_Spleen$genes$TFs_sel, function(tf) {min_t = min(sum(a$source == tf), sum(b$source == tf), sum(c$source == tf), sum(d$source == tf), sum(e$source == tf), sum(f$source == tf)); return(min_t)})
+Tregs_Spleen_k = sum(min_t_vals)
+
+a = Tregs_VAT$net$ATAC$edges_sel
+b = Tregs_VAT$net$scMINER$edges_sel
+c = Tregs_VAT$net$GENIE3$edges_sel
+d = Tregs_VAT$net$GRNBoost2$edges_sel
+e = Tregs_VAT$net$PIDC$edges_sel
+f = Tregs_VAT$net$Rand$edges_sel
+min_t_vals = sapply(Tregs_VAT$genes$TFs_sel, function(tf) {min_t = min(sum(a$source == tf), sum(b$source == tf), sum(c$source == tf), sum(d$source == tf), sum(e$source == tf), sum(f$source == tf)); return(min_t)})
+Tregs_VAT_k = sum(min_t_vals)
+```
+
+
+```{r}
+library(pROC)
+library(gsubfn)
+
+comp_roc_curves5 = function(true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5){
+  
+  roc1 <- roc(pred_edges1 %in% true_edges, 1:length(pred_edges1), direction = ">")
+  roc2 <- roc(pred_edges2 %in% true_edges, 1:length(pred_edges2), direction = ">")
+  roc3 <- roc(pred_edges3 %in% true_edges, 1:length(pred_edges3), direction = ">")
+  roc4 <- roc(pred_edges4 %in% true_edges, 1:length(pred_edges4), direction = ">")
+  roc5 <- roc(pred_edges5 %in% true_edges, 1:length(pred_edges5), direction = ">")
+  df1 = data.frame(x = 1-roc1$specificities, 
+                   y = roc1$sensitivities,
+                   lab = rep("scMINER", length(roc1$sensitivities )))
+  df2 = data.frame(x = 1-roc2$specificities, 
+                   y = roc2$sensitivities,
+                   lab = rep("GENIE3", length(roc2$sensitivities )))
+  df3 = data.frame(x = 1-roc3$specificities, 
+                   y = roc3$sensitivities,
+                   lab = rep("GRNBoost2", length(roc3$sensitivities )))
+  df4 = data.frame(x = 1-roc4$specificities, 
+                   y = roc4$sensitivities,
+                   lab = rep("PIDC", length(roc4$sensitivities )))
+  df5 = data.frame(x = 1-roc5$specificities, 
+                   y = roc5$sensitivities,
+                   lab = rep("Random", length(roc5$sensitivities )))
+  df = rbind(df1, df2, df3, df4, df5)
+
+  return(list(roc1=roc1, roc2=roc2, roc3=roc3, roc4=roc4, roc5=roc5, df=df))
+}
+
+library(PRROC)
+library(dplyr)
+
+comp_prc_curves5_k = function(k, true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5){
+  
+  prc1 = pr.curve(scores.class0 = k:1, weights.class0 = pred_edges1 %in% true_edges, sorted = TRUE, curve = TRUE)
+  prc2 = pr.curve(scores.class0 = k:1, weights.class0 = pred_edges2 %in% true_edges, sorted = TRUE, curve = TRUE)
+  prc3 = pr.curve(scores.class0 = k:1, weights.class0 = pred_edges3 %in% true_edges, sorted = TRUE, curve = TRUE)
+  prc4 = pr.curve(scores.class0 = k:1, weights.class0 = pred_edges4 %in% true_edges, sorted = TRUE, curve = TRUE)
+  prc5 = pr.curve(scores.class0 = k:1, weights.class0 = pred_edges5 %in% true_edges, sorted = TRUE, curve = TRUE)
+
+  df1 = data.frame(x = prc1$curve[,1], 
+                   y = prc1$curve[,2],
+                   lab = rep("scMINER", length(prc1$curve[,1])))
+  df2 = data.frame(x = prc2$curve[,1], 
+                   y = prc2$curve[,2],
+                   lab = rep("GENIE3", length(prc1$curve[,1])))
+  df3 = data.frame(x = prc3$curve[,1], 
+                   y = prc3$curve[,2],
+                   lab = rep("GRNBoost2", length(prc1$curve[,1])))
+  df4 = data.frame(x = prc4$curve[,1], 
+                   y = prc4$curve[,2],
+                   lab = rep("PIDC", length(prc1$curve[,1])))
+  df5 = data.frame(x = prc5$curve[,1], 
+                   y = prc5$curve[,2],
+                   lab = rep("Random", length(prc1$curve[,1])))
+  df = rbind(df1, df2, df3, df4, df5)
+
+  return(list(prc1=prc1, prc2=prc2, prc3=prc3, prc4=prc4, prc5=prc5, df=df))
+}
+
+```
+
+
+```{r}
+T = 100
+
+k_vals = seq(1,TEX_int_k, by=T)
+true_edges = TEX_int$net$ATAC$edges_sel_str
+pred_edges1 = TEX_int$net$scMINER$edges_sel_str
+pred_edges2 = TEX_int$net$GENIE3$edges_sel_str
+pred_edges3 = TEX_int$net$GRNBoost2$edges_sel_str
+pred_edges4 = TEX_int$net$PIDC$edges_sel_str
+pred_edges5 = TEX_int$net$Rand$edges_sel_str
+tp1 = sapply(k_vals, function(k){return(sum(pred_edges1[1:k] %in% true_edges))})
+tp2 = sapply(k_vals, function(k){return(sum(pred_edges2[1:k] %in% true_edges))})
+tp3 = sapply(k_vals, function(k){return(sum(pred_edges3[1:k] %in% true_edges))})
+tp4 = sapply(k_vals, function(k){return(sum(pred_edges4[1:k] %in% true_edges))})
+tp5 = sapply(k_vals, function(k){return(sum(pred_edges5[1:k] %in% true_edges))})
+TEX_int_TF_sel_tp <- data.frame('scMINER' = tp1, 'GENIE3' = tp2, 'GRNBoost2' = tp3, 'PIDC' = tp4, 'Random' = tp5, 'k' = k_vals)
+epr1 <- tp1/tp5
+epr2 <- tp2/tp5
+epr3 <- tp3/tp5
+epr4 <- tp4/tp5
+TEX_int_TF_sel_epr <- data.frame('scMINER' = epr1, 'GENIE3' = epr2, 'GRNBoost2' = epr3, 'PIDC' = epr4, 'k' = k_vals)
+TEX_int_roc_curves_sel_k = comp_roc_curves5(true_edges, 
+                                        pred_edges1[1:TEX_int_k], 
+                                        pred_edges2[1:TEX_int_k], 
+                                        pred_edges3[1:TEX_int_k], 
+                                        pred_edges4[1:TEX_int_k], 
+                                        pred_edges5[1:TEX_int_k])
+TEX_int_roc_curves_sel_all = comp_roc_curves5(true_edges, 
+                                          pred_edges1, 
+                                          pred_edges2, 
+                                          pred_edges3, 
+                                          pred_edges4, 
+                                          pred_edges5)
+
+k_vals = seq(1,TEX_prog_k, by=T)
+true_edges = TEX_prog$net$ATAC$edges_sel_str
+pred_edges1 = TEX_prog$net$scMINER$edges_sel_str
+pred_edges2 = TEX_prog$net$GENIE3$edges_sel_str
+pred_edges3 = TEX_prog$net$GRNBoost2$edges_sel_str
+pred_edges4 = TEX_prog$net$PIDC$edges_sel_str
+pred_edges5 = TEX_prog$net$Rand$edges_sel_str
+tp1 = sapply(k_vals, function(k){return(sum(pred_edges1[1:k] %in% true_edges))})
+tp2 = sapply(k_vals, function(k){return(sum(pred_edges2[1:k] %in% true_edges))})
+tp3 = sapply(k_vals, function(k){return(sum(pred_edges3[1:k] %in% true_edges))})
+tp4 = sapply(k_vals, function(k){return(sum(pred_edges4[1:k] %in% true_edges))})
+tp5 = sapply(k_vals, function(k){return(sum(pred_edges5[1:k] %in% true_edges))})
+TEX_prog_TF_sel_tp <- data.frame('scMINER' = tp1, 'GENIE3' = tp2, 'GRNBoost2' = tp3, 'PIDC' = tp4, 'Random' = tp5, 'k' = k_vals)
+epr1 <- tp1/tp5
+epr2 <- tp2/tp5
+epr3 <- tp3/tp5
+epr4 <- tp4/tp5
+TEX_prog_TF_sel_epr <- data.frame('scMINER' = epr1, 'GENIE3' = epr2, 'GRNBoost2' = epr3, 'PIDC' = epr4, 'k' = k_vals)
+TEX_prog_roc_curves_sel_k = comp_roc_curves5(true_edges, 
+                                         pred_edges1[1:TEX_prog_k], 
+                                         pred_edges2[1:TEX_prog_k], 
+                                         pred_edges3[1:TEX_prog_k], 
+                                         pred_edges4[1:TEX_prog_k], 
+                                         pred_edges5[1:TEX_prog_k])
+TEX_prog_roc_curves_sel_all = comp_roc_curves5(true_edges, 
+                                           pred_edges1, 
+                                           pred_edges2, 
+                                           pred_edges3, 
+                                           pred_edges4, 
+                                           pred_edges5)
+
+K1 = 1
+K2 = TEX_term_k
+k_vals = seq(K1,K2, by=T)
+true_edges = TEX_term$net$ATAC$edges_sel_str
+pred_edges1 = TEX_term$net$scMINER$edges_sel_str
+pred_edges2 = TEX_term$net$GENIE3$edges_sel_str
+pred_edges3 = TEX_term$net$GRNBoost2$edges_sel_str
+pred_edges4 = TEX_term$net$PIDC$edges_sel_str
+pred_edges5 = TEX_term$net$Rand$edges_sel_str
+tp1 = sapply(k_vals, function(k){return(sum(pred_edges1[1:k] %in% true_edges))})
+tp2 = sapply(k_vals, function(k){return(sum(pred_edges2[1:k] %in% true_edges))})
+tp3 = sapply(k_vals, function(k){return(sum(pred_edges3[1:k] %in% true_edges))})
+tp4 = sapply(k_vals, function(k){return(sum(pred_edges4[1:k] %in% true_edges))})
+tp5 = sapply(k_vals, function(k){return(sum(pred_edges5[1:k] %in% true_edges))})
+TEX_term_TF_sel_tp <- data.frame('scMINER' = tp1, 'GENIE3' = tp2, 'GRNBoost2' = tp3, 'PIDC' = tp4, 'Random' = tp5, 'k' = k_vals)
+epr1 <- tp1/tp5
+epr2 <- tp2/tp5
+epr3 <- tp3/tp5
+epr4 <- tp4/tp5
+TEX_term_TF_sel_epr <- data.frame('scMINER' = epr1, 'GENIE3' = epr2, 'GRNBoost2' = epr3, 'PIDC' = epr4, 'k' = k_vals)
+TEX_term_roc_curves_sel_k = comp_roc_curves5(true_edges, 
+                                         pred_edges1[1:TEX_term_k], 
+                                         pred_edges2[1:TEX_term_k], 
+                                         pred_edges3[1:TEX_term_k], 
+                                         pred_edges4[1:TEX_term_k], 
+                                         pred_edges5[1:TEX_term_k])
+TEX_term_roc_curves_sel_all = comp_roc_curves5(true_edges, 
+                                           pred_edges1, 
+                                           pred_edges2, 
+                                           pred_edges3, 
+                                           pred_edges4, 
+                                           pred_edges5)
+
+
+K1 = 1
+K2 = Tregs_Spleen_k
+k_vals = seq(K1,K2, by=T)
+true_edges = Tregs_Spleen$net$ATAC$edges_sel_str
+pred_edges1 = Tregs_Spleen$net$scMINER$edges_sel_str
+pred_edges2 = Tregs_Spleen$net$GENIE3$edges_sel_str
+pred_edges3 = Tregs_Spleen$net$GRNBoost2$edges_sel_str
+pred_edges4 = Tregs_Spleen$net$PIDC$edges_sel_str
+pred_edges5 = Tregs_Spleen$net$Rand$edges_sel_str
+tp1 = sapply(k_vals, function(k){return(sum(pred_edges1[1:k] %in% true_edges))})
+tp2 = sapply(k_vals, function(k){return(sum(pred_edges2[1:k] %in% true_edges))})
+tp3 = sapply(k_vals, function(k){return(sum(pred_edges3[1:k] %in% true_edges))})
+tp4 = sapply(k_vals, function(k){return(sum(pred_edges4[1:k] %in% true_edges))})
+tp5 = sapply(k_vals, function(k){return(sum(pred_edges5[1:k] %in% true_edges))})
+Tregs_Spleen_TF_sel_tp <- data.frame('scMINER' = tp1, 'GENIE3' = tp2, 'GRNBoost2' = tp3, 'PIDC' = tp4, 'Random' = tp5, 'k' = k_vals)
+epr1 <- tp1/tp5
+epr2 <- tp2/tp5
+epr3 <- tp3/tp5
+epr4 <- tp4/tp5
+Tregs_Spleen_TF_sel_epr <- data.frame('scMINER' = epr1, 'GENIE3' = epr2, 'GRNBoost2' = epr3, 'PIDC' = epr4, 'k' = k_vals)
+Tregs_Spleen_roc_curves_sel_k = comp_roc_curves5(true_edges, 
+                                             pred_edges1[1:Tregs_Spleen_k], 
+                                             pred_edges2[1:Tregs_Spleen_k], 
+                                             pred_edges3[1:Tregs_Spleen_k], 
+                                             pred_edges4[1:Tregs_Spleen_k], 
+                                             pred_edges5[1:Tregs_Spleen_k])
+Tregs_Spleen_roc_curves_sel_all = comp_roc_curves5(true_edges, 
+                                               pred_edges1, 
+                                               pred_edges2, 
+                                               pred_edges3, 
+                                               pred_edges4, 
+                                               pred_edges5)
+
+
+K1 = 1
+K2 = Tregs_VAT_k
+k_vals = seq(K1,K2, by=T)
+true_edges = Tregs_VAT$net$ATAC$edges_sel_str
+pred_edges1 = Tregs_VAT$net$scMINER$edges_sel_str
+pred_edges2 = Tregs_VAT$net$GENIE3$edges_sel_str
+pred_edges3 = Tregs_VAT$net$GRNBoost2$edges_sel_str
+pred_edges4 = Tregs_VAT$net$PIDC$edges_sel_str
+pred_edges5 = Tregs_VAT$net$Rand$edges_sel_str
+tp1 = sapply(k_vals, function(k){return(sum(pred_edges1[1:k] %in% true_edges))})
+tp2 = sapply(k_vals, function(k){return(sum(pred_edges2[1:k] %in% true_edges))})
+tp3 = sapply(k_vals, function(k){return(sum(pred_edges3[1:k] %in% true_edges))})
+tp4 = sapply(k_vals, function(k){return(sum(pred_edges4[1:k] %in% true_edges))})
+tp5 = sapply(k_vals, function(k){return(sum(pred_edges5[1:k] %in% true_edges))})
+Tregs_VAT_TF_sel_tp <- data.frame('scMINER' = tp1, 'GENIE3' = tp2, 'GRNBoost2' = tp3, 'PIDC' = tp4, 'Random' = tp5, 'k' = k_vals)
+epr1 <- tp1/tp5
+epr2 <- tp2/tp5
+epr3 <- tp3/tp5
+epr4 <- tp4/tp5
+Tregs_VAT_TF_sel_epr <- data.frame('scMINER' = epr1, 'GENIE3' = epr2, 'GRNBoost2' = epr3, 'PIDC' = epr4, 'k' = k_vals)
+Tregs_VAT_roc_curves_sel_k = comp_roc_curves5(true_edges, 
+                                             pred_edges1[1:Tregs_VAT_k], 
+                                             pred_edges2[1:Tregs_VAT_k], 
+                                             pred_edges3[1:Tregs_VAT_k], 
+                                             pred_edges4[1:Tregs_VAT_k], 
+                                             pred_edges5[1:Tregs_VAT_k])
+Tregs_VAT_roc_curves_sel_all = comp_roc_curves5(true_edges, 
+                                               pred_edges1, 
+                                               pred_edges2, 
+                                               pred_edges3, 
+                                               pred_edges4, 
+                                               pred_edges5)
+```
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(TEX_int_TF_sel_tp, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+      xlab('# top ranked edges (k)') + ylab('# true positive edges') + ggtitle(paste("Teff-like, #TFs=", as.character(length(TEX_int$genes$TFs_sel)), sep = '')) + 
+      theme_linedraw(base_size = 16) + 
+      scale_color_manual(name = 'Models',
+                        limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                        values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) + 
+      theme(plot.background = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(), 
+            legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.1*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+
+p
+```
+
+```{r}
+save_file = file.path(fold, "TEX_int_TP.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_TP.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(TEX_int_TF_sel_epr, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+      xlab('# top ranked edges (k)') + ylab('Early precition ratio (EPR)') + ggtitle(paste("Teff-like, #TFs=", as.character(length(TEX_int$genes$TFs_sel)), sep = '')) + 
+      theme_linedraw(base_size = 16) + 
+      scale_color_manual(name = 'Models',
+                        limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"),
+                        values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) + 
+  theme(plot.background = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(), 
+            legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.6*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p
+```
+
+```{r}
+save_file = file.path(fold, "TEX_int_EPR.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_EPR.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = TEX_int_roc_curves_sel_all
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+     scale_color_manual(name = 'Models',
+                        labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                   paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                   paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                   paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                   paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                        limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                        values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+     theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+     ggtitle(paste("Teff-like, ROC (all edges)", sep = '')) + 
+     theme(plot.background = element_blank(),
+           panel.grid.major = element_blank(),
+           panel.grid.minor = element_blank(), 
+           legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+           paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+           paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+           paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+           paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = ""))
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = TEX_int_roc_curves_sel_k
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste("Teff-like, ROC (top ", as.character(TEX_int_k), ' edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+           paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+           paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+           paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+           paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = ""))
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_ROC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_ROC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+k_max = TEX_int_k
+true_edges = TEX_int$net$ATAC$edges_sel_str
+pred_edges1 = TEX_int$net$scMINER$edges_sel_str[1:k_max]
+pred_edges2 = TEX_int$net$GENIE3$edges_sel_str[1:k_max]
+pred_edges3 = TEX_int$net$GRNBoost2$edges_sel_str[1:k_max]
+pred_edges4 = TEX_int$net$PIDC$edges_sel_str[1:k_max]
+pred_edges5 = TEX_int$net$Rand$edges_sel_str[1:k_max]
+l = comp_prc_curves5_k(k_max, true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5)
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUPRC=", as.character(round(l[[1]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUPRC=", as.character(round(l[[2]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUPRC=", as.character(round(l[[3]]$auc.integral,3)), ")",sep = ""), 
+                                paste("PIDC", " (AUPRC=", as.character(round(l[[4]]$auc.integral,3)), ")",sep = ""), 
+                                paste("Random", " (AUPRC=", as.character(round(l[[5]]$auc.integral,3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("Recall") + ylab("Precision") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Teff-like, PRC (top ', as.character(TEX_int_k), ' edges)', sep = '')) + 
+    theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+labels = c(paste("scMINER", " (AUPRC=", as.character(round(l[[1]]$auc.integral,3)), ")",sep = ""), 
+           paste("GENIE3", " (AUPRC=", as.character(round(l[[2]]$auc.integral,3)), ")",sep = ""), 
+           paste("GRNBoost2", " (AUPRC=", as.character(round(l[[3]]$auc.integral,3)), ")",sep = ""), 
+           paste("PIDC", " (AUPRC=", as.character(round(l[[4]]$auc.integral,3)), ")",sep = ""), 
+           paste("Random", " (AUPRC=", as.character(round(l[[5]]$auc.integral,3)), ")",sep = ""))
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUPRC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(l[[1]]$auc.integral,3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(l[[2]]$auc.integral,3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(l[[3]]$auc.integral,3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(l[[4]]$auc.integral,3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(l[[5]]$auc.integral,3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_int_PRC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_int_PRC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(TEX_prog_TF_sel_tp, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('# true positive edges') + 
+  ggtitle(paste("Tpex, #TFs=", as.character(length(TEX_prog$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.1*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p
+```
+
+```{r}
+save_file = file.path(fold, "TEX_prog_TP.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_TP.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(TEX_prog_TF_sel_epr, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('Early precition ratio (EPR)') + 
+  ggtitle(paste('Tpex, #TFs=', as.character(length(TEX_prog$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.7*x_range
+y_t = 0.95*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+  
+p
+```
+
+```{r}
+save_file = file.path(fold, "TEX_prog_EPR.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_EPR.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = TEX_prog_roc_curves_sel_all
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tpex, ROC (all edges)', sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+           paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+           paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+           paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+           paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = ""))
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = TEX_prog_roc_curves_sel_k
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tpex, ROC (top ', as.character(TEX_prog_k), ' edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+           paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+           paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+           paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+           paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = ""))
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_ROC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_ROC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+k_max = TEX_prog_k
+true_edges = TEX_prog$net$ATAC$edges_sel_str
+pred_edges1 = TEX_prog$net$scMINER$edges_sel_str[1:k_max]
+pred_edges2 = TEX_prog$net$GENIE3$edges_sel_str[1:k_max]
+pred_edges3 = TEX_prog$net$GRNBoost2$edges_sel_str[1:k_max]
+pred_edges4 = TEX_prog$net$PIDC$edges_sel_str[1:k_max]
+pred_edges5 = TEX_prog$net$Rand$edges_sel_str[1:k_max]
+l = comp_prc_curves5_k(k_max, true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5)
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUPRC=", as.character(round(l[[1]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUPRC=", as.character(round(l[[2]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUPRC=", as.character(round(l[[3]]$auc.integral,3)), ")",sep = ""), 
+                                paste("PIDC", " (AUPRC=", as.character(round(l[[4]]$auc.integral,3)), ")",sep = ""), 
+                                paste("Random", " (AUPRC=", as.character(round(l[[5]]$auc.integral,3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("Recall") + ylab("Precision") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tpex, PRC (top ', as.character(TEX_prog_k), ' edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUPRC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(l[[1]]$auc.integral,3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(l[[2]]$auc.integral,3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(l[[3]]$auc.integral,3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(l[[4]]$auc.integral,3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(l[[5]]$auc.integral,3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_prog_PRC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_prog_PRC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(TEX_term_TF_sel_tp, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('# true positive edges') + 
+  ggtitle(paste('Tex, #TFs=', as.character(length(TEX_term$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray") ) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.1*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+  
+p
+```
+
+```{r}
+save_file = file.path(fold, "TEX_term_TP.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_TP.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(TEX_term_TF_sel_epr, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('Early precition ratio (EPR)') + 
+  ggtitle(paste('Tex, #TFs=', as.character(length(TEX_term$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.6*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p
+```
+
+```{r}
+save_file = file.path(fold, "TEX_term_EPR.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_EPR.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = TEX_term_roc_curves_sel_all
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tex, ROC (all edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = TEX_term_roc_curves_sel_k
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tex, ROC (top ', as.character(TEX_term_k), ' edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_ROC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_ROC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+k_max = TEX_term_k
+true_edges = TEX_term$net$ATAC$edges_sel_str
+pred_edges1 = TEX_term$net$scMINER$edges_sel_str[1:k_max]
+pred_edges2 = TEX_term$net$GENIE3$edges_sel_str[1:k_max]
+pred_edges3 = TEX_term$net$GRNBoost2$edges_sel_str[1:k_max]
+pred_edges4 = TEX_term$net$PIDC$edges_sel_str[1:k_max]
+pred_edges5 = TEX_term$net$Rand$edges_sel_str[1:k_max]
+l = comp_prc_curves5_k(k_max, true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5)
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUPRC=", as.character(round(l[[1]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUPRC=", as.character(round(l[[2]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUPRC=", as.character(round(l[[3]]$auc.integral,3)), ")",sep = ""), 
+                                paste("PIDC", " (AUPRC=", as.character(round(l[[4]]$auc.integral,3)), ")",sep = ""), 
+                                paste("Random", " (AUPRC=", as.character(round(l[[5]]$auc.integral,3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("Recall") + ylab("Precision") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tex, PRC (top ', as.character(TEX_term_k), ' edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUPRC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(l[[1]]$auc.integral,3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(l[[2]]$auc.integral,3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(l[[3]]$auc.integral,3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(l[[4]]$auc.integral,3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(l[[5]]$auc.integral,3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "TEX_term_PRC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "TEX_term_PRC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(Tregs_Spleen_TF_sel_tp, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('# true positive edges') + 
+  ggtitle(paste('Tregs Spleen, #TFs=', as.character(length(Tregs_Spleen$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.1*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+
+p
+```
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_TP.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_TP.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(Tregs_Spleen_TF_sel_epr, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('Early precition ratio (EPR)') + 
+  ggtitle(paste('Tregs Spleen, #TFs=', as.character(length(Tregs_Spleen$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.8*x_range
+y_t = 1.2*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p
+```
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_EPR.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_EPR.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = Tregs_Spleen_roc_curves_sel_all
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tregs Spleen, ROC (all edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = Tregs_Spleen_roc_curves_sel_k
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tregs Spleen, ROC (top ', as.character(Tregs_Spleen_k), ' edges)', sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_ROC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_ROC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+k_max = Tregs_Spleen_k
+true_edges = Tregs_Spleen$net$ATAC$edges_sel_str
+pred_edges1 = Tregs_Spleen$net$scMINER$edges_sel_str[1:k_max]
+pred_edges2 = Tregs_Spleen$net$GENIE3$edges_sel_str[1:k_max]
+pred_edges3 = Tregs_Spleen$net$GRNBoost2$edges_sel_str[1:k_max]
+pred_edges4 = Tregs_Spleen$net$PIDC$edges_sel_str[1:k_max]
+pred_edges5 = Tregs_Spleen$net$Rand$edges_sel_str[1:k_max]
+l = comp_prc_curves5_k(k_max, true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5)
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUPRC=", as.character(round(l[[1]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUPRC=", as.character(round(l[[2]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUPRC=", as.character(round(l[[3]]$auc.integral,3)), ")",sep = ""), 
+                                paste("PIDC", " (AUPRC=", as.character(round(l[[4]]$auc.integral,3)), ")",sep = ""), 
+                                paste("Random", " (AUPRC=", as.character(round(l[[5]]$auc.integral,3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("Recall") + ylab("Precision") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tregs Spleen, PRC (top ', as.character(Tregs_Spleen_k), ' edges)', sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUPRC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(l[[1]]$auc.integral,3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(l[[2]]$auc.integral,3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(l[[3]]$auc.integral,3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(l[[4]]$auc.integral,3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(l[[5]]$auc.integral,3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_Spleen_PRC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_Spleen_PRC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(Tregs_VAT_TF_sel_tp, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('# true positive edges') + 
+  ggtitle(paste('Tregs VAT, #TFs=', as.character(length(Tregs_VAT$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value)]) - min(df$value[!is.na(df$value)]))
+x_t = 0.1*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+  
+p
+```
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_TP.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_TP.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+```{r, fig.width = 6, fig.height = 6}
+df <- melt(Tregs_VAT_TF_sel_epr, id = "k")
+p <- ggplot(df, aes(x=k, y=value, color = variable)) + geom_line(size = 1) + 
+  xlab('# top ranked edges (k)') + ylab('Early precition ratio (EPR)') + ggtitle(paste('Tregs VAT, #TFs=', as.character(length(Tregs_VAT$genes$TFs_sel)), sep = '')) + 
+  theme_linedraw(base_size = 16) + 
+  scale_color_manual(name = 'Models',
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown")) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = (max(df$k) - min(df$k))
+y_range = (max(df$value[!is.na(df$value) & !is.infinite(df$value)]) - min(df$value[!is.na(df$value) & !is.infinite(df$value)]))
+x_t = 0.6*x_range
+y_t = 0.9*y_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+
+p
+```
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_EPR.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_EPR.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = Tregs_VAT_roc_curves_sel_all
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tregs VAT, ROC (all edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_ROC_all_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_ROC_all_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+l = Tregs_VAT_roc_curves_sel_k
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUROC=", as.character(round(auc(l[[1]]),3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUROC=", as.character(round(auc(l[[2]]),3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUROC=", as.character(round(auc(l[[3]]),3)), ")",sep = ""), 
+                                paste("PIDC", " (AUROC=", as.character(round(auc(l[[4]]),3)), ")",sep = ""), 
+                                paste("Random", " (AUROC=", as.character(round(auc(l[[5]]),3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("1-Specificity") + ylab("Sensitivity") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tregs VAT, ROC (top ', as.character(Tregs_VAT_k), ' edges)', sep = '')) +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.05*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUROC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(auc(l[[1]]),3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(auc(l[[2]]),3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(auc(l[[3]]),3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(auc(l[[4]]),3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(auc(l[[5]]),3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_ROC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_ROC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 6, fig.height = 6}
+k_max = Tregs_VAT_k
+true_edges = Tregs_VAT$net$ATAC$edges_sel_str
+pred_edges1 = Tregs_VAT$net$scMINER$edges_sel_str[1:k_max]
+pred_edges2 = Tregs_VAT$net$GENIE3$edges_sel_str[1:k_max]
+pred_edges3 = Tregs_VAT$net$GRNBoost2$edges_sel_str[1:k_max]
+pred_edges4 = Tregs_VAT$net$PIDC$edges_sel_str[1:k_max]
+pred_edges5 = Tregs_VAT$net$Rand$edges_sel_str[1:k_max]
+l = comp_prc_curves5_k(k_max, true_edges, pred_edges1, pred_edges2, pred_edges3, pred_edges4, pred_edges5)
+p <- ggplot(l[[6]], aes(x = x, y = y)) + geom_path(aes(color = lab), size = 1) +
+  scale_color_manual(name = 'Models',
+                     labels = c(paste("scMINER", " (AUPRC=", as.character(round(l[[1]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GENIE3", " (AUPRC=", as.character(round(l[[2]]$auc.integral,3)), ")",sep = ""), 
+                                paste("GRNBoost2", " (AUPRC=", as.character(round(l[[3]]$auc.integral,3)), ")",sep = ""), 
+                                paste("PIDC", " (AUPRC=", as.character(round(l[[4]]$auc.integral,3)), ")",sep = ""), 
+                                paste("Random", " (AUPRC=", as.character(round(l[[5]]$auc.integral,3)), ")",sep = "")), 
+                     limits = c("scMINER", "GENIE3", "GRNBoost2", "PIDC", "Random"),
+                     values = c("scMINER" = "red", "GENIE3" = "green", "GRNBoost2" = "blue", "PIDC" = "sandybrown", "Random" = "gray")) +
+  theme_linedraw(base_size = 16) + xlab("Recall") + ylab("Precision") + xlim(0, 1) + ylim(0, 1) + 
+  ggtitle(paste('Tregs VAT, PRC (top ', as.character(Tregs_VAT_k), ' edges)', sep = '')) + 
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        legend.position = "none")
+
+x_range = 1
+y_range = 1
+x_t = 0.5*x_range
+y_t = 0.95*y_range
+x_delta = 0.27*x_range
+y_delta = 0.05*y_range
+
+
+p <- p + annotate("text", x = x_t, y = y_t, hjust = 0, label = "Method", color = "black", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t, hjust = 0, label = "AUPRC", color = "black", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - y_delta, hjust = 0, label = "scMINER", color = "red", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - y_delta, hjust = 0, label = as.character(round(l[[1]]$auc.integral,3)), color = "red", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 2*y_delta, hjust = 0, label = "GENIE3", color = "green", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 2*y_delta, hjust = 0, label = as.character(round(l[[2]]$auc.integral,3)), color = "green", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 3*y_delta, hjust = 0, label = "GRNBoost2", color = "blue", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 3*y_delta, hjust = 0, label = as.character(round(l[[3]]$auc.integral,3)), color = "blue", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 4*y_delta, hjust = 0, label = "PIDC", color = "sandybrown", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 4*y_delta, hjust = 0, label = as.character(round(l[[4]]$auc.integral,3)), color = "sandybrown", size = 5)
+
+p <- p + annotate("text", x = x_t, y = y_t - 5*y_delta, hjust = 0, label = "Random", color = "gray", size = 5)
+p <- p + annotate("text", x = x_t + x_delta, y = y_t - 5*y_delta, hjust = 0, label = as.character(round(l[[5]]$auc.integral,3)), color = "gray", size = 5)
+
+p
+```
+
+
+```{r}
+save_file = file.path(fold, "Tregs_VAT_PRC_top_k_edges.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(fold, "Tregs_VAT_PRC_top_k_edges.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+
+
+
+
+
+

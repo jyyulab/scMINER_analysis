@@ -1,0 +1,1252 @@
+---
+title: "process_nets_compute_GSEA"
+output: html_document
+date: "2024-06-04"
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+```
+
+
+```{r}
+ref_type = "NT"
+#pv = "0.000001"
+pv = "0.001"
+#save_fold = file.path(root_fold, paste(pv, "_filt", sep = ""))
+
+inp_fold = "/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data"
+sce_inp_file = file.path(inp_fold, "sce_filt_results_proc.Rdata")
+load(sce_inp_file)
+filt_inp_file = file.path(inp_fold, "filt_targets_results.Rdata")
+load(filt_inp_file)
+supercell_inp_file = file.path(inp_fold, "supercell", paste0("supercells_sce_", ref_type, ".Rdata"))
+load(supercell_inp_file)
+```
+
+
+```{r}
+sample1 = colData(sce1_filt)$sample[1]
+sample2 = colData(sce2_filt)$sample[1]
+sample3 = colData(sce3_filt)$sample[1]
+sample4 = colData(sce4_filt)$sample[1]
+```
+
+
+```{r}
+SJ_fold1 = file.path(
+  inp_fold,
+  "supercell",
+  "SJARACNe",
+  paste(
+    sample1,
+    ref_type,
+    as.character(dim(sce1_NT_MC)[1]),
+    as.character(dim(sce1_NT_MC)[1]),
+    as.character(dim(sce1_NT_MC)[2]),
+    sep = "_"
+  )
+)
+SJ_fold2 = file.path(
+  inp_fold,
+  "supercell",
+  "SJARACNe",
+  paste(
+    sample2,
+    ref_type,
+    as.character(dim(sce2_NT_MC)[1]),
+    as.character(dim(sce2_NT_MC)[1]),
+    as.character(dim(sce2_NT_MC)[2]),
+    sep = "_"
+  )
+)
+SJ_fold3 = file.path(
+  inp_fold,
+  "supercell",
+  "SJARACNe",
+  paste(
+    sample3,
+    ref_type,
+    as.character(dim(sce3_NT_MC)[1]),
+    as.character(dim(sce3_NT_MC)[1]),
+    as.character(dim(sce3_NT_MC)[2]),
+    sep = "_"
+  )
+)
+SJ_fold4 = file.path(
+  inp_fold,
+  "supercell",
+  "SJARACNe",
+  paste(
+    sample4,
+    ref_type,
+    as.character(dim(sce4_NT_MC)[1]),
+    as.character(dim(sce4_NT_MC)[1]),
+    as.character(dim(sce4_NT_MC)[2]),
+    sep = "_"
+  )
+)
+```
+
+
+```{r}
+net1_SJ_NT_TF_file = file.path(SJ_fold1,
+                               paste("tf_", pv, sep = ""),
+                               "consensus_network_ncol_.txt")
+net1_SJ_NT_TF = read.table(net1_SJ_NT_TF_file, header = TRUE)
+srt <-
+  sort(abs(net1_SJ_NT_TF$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_SJ_NT_TF_srt <- net1_SJ_NT_TF[srt$ix, ]
+net1_SJ_NT_TF_edges_corr <-
+  data.frame(
+    source = net1_SJ_NT_TF_srt$source,
+    target = net1_SJ_NT_TF_srt$target,
+    score = abs(net1_SJ_NT_TF_srt$spearman),
+    sign = sign(net1_SJ_NT_TF_srt$spearman)
+  )
+srt <- sort(net1_SJ_NT_TF$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net1_SJ_NT_TF_srt <- net1_SJ_NT_TF[srt$ix, ]
+net1_SJ_NT_TF_edges_MI <-
+  data.frame(
+    source = net1_SJ_NT_TF_srt$source,
+    target = net1_SJ_NT_TF_srt$target,
+    score = net1_SJ_NT_TF_srt$MI,
+    sign = sign(net1_SJ_NT_TF_srt$spearman)
+  )
+
+net2_SJ_NT_TF_file = file.path(SJ_fold2,
+                               paste("tf_", pv, sep = ""),
+                               "consensus_network_ncol_.txt")
+net2_SJ_NT_TF = read.table(net2_SJ_NT_TF_file, header = TRUE)
+srt <-
+  sort(abs(net2_SJ_NT_TF$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_SJ_NT_TF_srt <- net2_SJ_NT_TF[srt$ix, ]
+net2_SJ_NT_TF_edges_corr <-
+  data.frame(
+    source = net2_SJ_NT_TF_srt$source,
+    target = net2_SJ_NT_TF_srt$target,
+    score = abs(net2_SJ_NT_TF_srt$spearman),
+    sign = sign(net2_SJ_NT_TF_srt$spearman)
+  )
+srt <- sort(net2_SJ_NT_TF$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net2_SJ_NT_TF_srt <- net2_SJ_NT_TF[srt$ix, ]
+net2_SJ_NT_TF_edges_MI <-
+  data.frame(
+    source = net2_SJ_NT_TF_srt$source,
+    target = net2_SJ_NT_TF_srt$target,
+    score = net2_SJ_NT_TF_srt$MI,
+    sign = sign(net2_SJ_NT_TF_srt$spearman)
+  )
+
+net3_SJ_NT_TF_file = file.path(SJ_fold3,
+                               paste("tf_", pv, sep = ""),
+                               "consensus_network_ncol_.txt")
+net3_SJ_NT_TF = read.table(net3_SJ_NT_TF_file, header = TRUE)
+srt <-
+  sort(abs(net3_SJ_NT_TF$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_SJ_NT_TF_srt <- net3_SJ_NT_TF[srt$ix, ]
+net3_SJ_NT_TF_edges_corr <-
+  data.frame(
+    source = net3_SJ_NT_TF_srt$source,
+    target = net3_SJ_NT_TF_srt$target,
+    score = abs(net3_SJ_NT_TF_srt$spearman),
+    sign = sign(net3_SJ_NT_TF_srt$spearman)
+  )
+srt <- sort(net3_SJ_NT_TF$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net3_SJ_NT_TF_srt <- net3_SJ_NT_TF[srt$ix, ]
+net3_SJ_NT_TF_edges_MI <-
+  data.frame(
+    source = net3_SJ_NT_TF_srt$source,
+    target = net3_SJ_NT_TF_srt$target,
+    score = net3_SJ_NT_TF_srt$MI,
+    sign = sign(net3_SJ_NT_TF_srt$spearman)
+  )
+
+net4_SJ_NT_TF_file = file.path(SJ_fold4,
+                               paste("tf_", pv, sep = ""),
+                               "consensus_network_ncol_.txt")
+net4_SJ_NT_TF = read.table(net4_SJ_NT_TF_file, header = TRUE)
+srt <-
+  sort(abs(net4_SJ_NT_TF$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_SJ_NT_TF_srt <- net4_SJ_NT_TF[srt$ix, ]
+net4_SJ_NT_TF_edges_corr <-
+  data.frame(
+    source = net4_SJ_NT_TF_srt$source,
+    target = net4_SJ_NT_TF_srt$target,
+    score = abs(net4_SJ_NT_TF_srt$spearman),
+    sign = sign(net4_SJ_NT_TF_srt$spearman)
+  )
+srt <- sort(net4_SJ_NT_TF$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net4_SJ_NT_TF_srt <- net4_SJ_NT_TF[srt$ix, ]
+net4_SJ_NT_TF_edges_MI <-
+  data.frame(
+    source = net4_SJ_NT_TF_srt$source,
+    target = net4_SJ_NT_TF_srt$target,
+    score = net4_SJ_NT_TF_srt$MI,
+    sign = sign(net4_SJ_NT_TF_srt$spearman)
+  )
+
+```
+
+
+```{r}
+net1_GRNB2_NT_TF_file = file.path(inp_fold,
+                                  "supercell",
+                                  "GRNBoost2",
+                                  paste(sample1, ref_type, "tf_network.txt", sep = "_"))
+net1_GRNB2_NT_TF = read.table(net1_GRNB2_NT_TF_file, header = FALSE)
+srt <-
+  sort(net1_GRNB2_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_GRNB2_NT_TF_srt <- net1_GRNB2_NT_TF[srt$ix, ]
+net1_GRNB2_NT_TF_edges <-
+  data.frame(source = net1_GRNB2_NT_TF_srt$V1,
+             target = net1_GRNB2_NT_TF_srt$V2,
+             score = net1_GRNB2_NT_TF_srt$V3)
+
+net2_GRNB2_NT_TF_file = file.path(inp_fold,
+                                  "supercell",
+                                  "GRNBoost2",
+                                  paste(sample2, ref_type, "tf_network.txt", sep = "_"))
+net2_GRNB2_NT_TF = read.table(net2_GRNB2_NT_TF_file, header = FALSE)
+srt <-
+  sort(net2_GRNB2_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_GRNB2_NT_TF_srt <- net2_GRNB2_NT_TF[srt$ix, ]
+net2_GRNB2_NT_TF_edges <-
+  data.frame(source = net2_GRNB2_NT_TF_srt$V1,
+             target = net2_GRNB2_NT_TF_srt$V2,
+             score = net2_GRNB2_NT_TF_srt$V3)
+
+net3_GRNB2_NT_TF_file = file.path(inp_fold,
+                                  "supercell",
+                                  "GRNBoost2",
+                                  paste(sample3, ref_type, "tf_network.txt", sep = "_"))
+net3_GRNB2_NT_TF = read.table(net3_GRNB2_NT_TF_file, header = FALSE)
+srt <-
+  sort(net3_GRNB2_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_GRNB2_NT_TF_srt <- net3_GRNB2_NT_TF[srt$ix, ]
+net3_GRNB2_NT_TF_edges <-
+  data.frame(source = net3_GRNB2_NT_TF_srt$V1,
+             target = net3_GRNB2_NT_TF_srt$V2,
+             score = net3_GRNB2_NT_TF_srt$V3)
+
+net4_GRNB2_NT_TF_file = file.path(inp_fold,
+                                  "supercell",
+                                  "GRNBoost2",
+                                  paste(sample4, ref_type, "tf_network.txt", sep = "_"))
+net4_GRNB2_NT_TF = read.table(net4_GRNB2_NT_TF_file, header = FALSE)
+srt <-
+  sort(net4_GRNB2_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_GRNB2_NT_TF_srt <- net4_GRNB2_NT_TF[srt$ix, ]
+net4_GRNB2_NT_TF_edges <-
+  data.frame(source = net4_GRNB2_NT_TF_srt$V1,
+             target = net4_GRNB2_NT_TF_srt$V2,
+             score = net4_GRNB2_NT_TF_srt$V3)
+
+```
+
+
+```{r}
+net1_GN3_NT_TF_file = file.path(inp_fold,
+                                "supercell",
+                                "GENIE3",
+                                paste(sample1, ref_type, "tf_network.txt", sep = "_"))
+net1_GN3_NT_TF = read.table(net1_GN3_NT_TF_file, header = FALSE)
+srt <- sort(net1_GN3_NT_TF$V3,
+            decreasing = TRUE,
+            index.return = TRUE)
+net1_GN3_NT_TF_srt <- net1_GN3_NT_TF[srt$ix, ]
+net1_GN3_NT_TF_edges <-
+  data.frame(source = net1_GN3_NT_TF_srt$V1,
+             target = net1_GN3_NT_TF_srt$V2,
+             score = net1_GN3_NT_TF_srt$V3)
+
+net2_GN3_NT_TF_file = file.path(inp_fold,
+                                "supercell",
+                                "GENIE3",
+                                paste(sample2, ref_type, "tf_network.txt", sep = "_"))
+net2_GN3_NT_TF = read.table(net2_GN3_NT_TF_file, header = FALSE)
+srt <- sort(net2_GN3_NT_TF$V3,
+            decreasing = TRUE,
+            index.return = TRUE)
+net2_GN3_NT_TF_srt <- net2_GN3_NT_TF[srt$ix, ]
+net2_GN3_NT_TF_edges <-
+  data.frame(source = net2_GN3_NT_TF_srt$V1,
+             target = net2_GN3_NT_TF_srt$V2,
+             score = net2_GN3_NT_TF_srt$V3)
+
+net3_GN3_NT_TF_file = file.path(inp_fold,
+                                "supercell",
+                                "GENIE3",
+                                paste(sample3, ref_type, "tf_network.txt", sep = "_"))
+net3_GN3_NT_TF = read.table(net3_GN3_NT_TF_file, header = FALSE)
+srt <- sort(net3_GN3_NT_TF$V3,
+            decreasing = TRUE,
+            index.return = TRUE)
+net3_GN3_NT_TF_srt <- net3_GN3_NT_TF[srt$ix, ]
+net3_GN3_NT_TF_edges <-
+  data.frame(source = net3_GN3_NT_TF_srt$V1,
+             target = net3_GN3_NT_TF_srt$V2,
+             score = net3_GN3_NT_TF_srt$V3)
+
+net4_GN3_NT_TF_file = file.path(inp_fold,
+                                "supercell",
+                                "GENIE3",
+                                paste(sample4, ref_type, "tf_network.txt", sep = "_"))
+net4_GN3_NT_TF = read.table(net4_GN3_NT_TF_file, header = FALSE)
+srt <- sort(net4_GN3_NT_TF$V3,
+            decreasing = TRUE,
+            index.return = TRUE)
+net4_GN3_NT_TF_srt <- net4_GN3_NT_TF[srt$ix, ]
+net4_GN3_NT_TF_edges <-
+  data.frame(source = net4_GN3_NT_TF_srt$V1,
+             target = net4_GN3_NT_TF_srt$V2,
+             score = net4_GN3_NT_TF_srt$V3)
+```
+
+
+```{r}
+targets1 <-
+  unique(sort(colData(sce1_filt)$Guides_collapsed_by_gene))
+targets1 <-
+  targets1[!(targets1 %in% c("safe-targeting", "non-targeting"))]
+targets1 <- targets1[targets1 %in% rownames(sce1_filt)]
+targets1 <-
+  targets1[targets1 %in% unique(sort(net1_SJ_NT_TF_edges_MI$source))]
+
+targets2 <-
+  unique(sort(colData(sce2_filt)$Guides_collapsed_by_gene))
+targets2 <-
+  targets2[!(targets2 %in% c("safe-targeting", "non-targeting"))]
+targets2 <- targets2[targets2 %in% rownames(sce2_filt)]
+targets2 <-
+  targets2[targets2 %in% unique(sort(net2_SJ_NT_TF_edges_MI$source))]
+
+targets3 <-
+  unique(sort(colData(sce3_filt)$Guides_collapsed_by_gene))
+targets3 <-
+  targets3[!(targets3 %in% c("safe-targeting", "non-targeting"))]
+targets3 <- targets3[targets3 %in% rownames(sce3_filt)]
+targets3 <-
+  targets3[targets3 %in% unique(sort(net3_SJ_NT_TF_edges_MI$source))]
+
+targets4 <-
+  unique(sort(colData(sce4_filt)$Guides_collapsed_by_gene))
+targets4 <-
+  targets4[!(targets4 %in% c("safe-targeting", "non-targeting"))]
+targets4 <- targets4[targets4 %in% rownames(sce4_filt)]
+targets4 <-
+  targets4[targets4 %in% unique(sort(net4_SJ_NT_TF_edges_MI$source))]
+```
+
+
+```{r}
+net1_PIDC_NT_file = file.path(inp_fold,
+                              "supercell",
+                              "PIDC",
+                              paste(sample1, ref_type, "PIDC_net.txt", sep = "_"))
+net1_PIDC_NT_all = read.table(net1_PIDC_NT_file, header = FALSE)
+ids = net1_PIDC_NT_all$V1 %in% targets1
+net1_PIDC_NT_TF <- net1_PIDC_NT_all[ids, ]
+srt <-
+  sort(net1_PIDC_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_PIDC_NT_TF_srt <- net1_PIDC_NT_TF[srt$ix, ]
+net1_PIDC_NT_TF_edges <-
+  data.frame(source = net1_PIDC_NT_TF_srt$V1,
+             target = net1_PIDC_NT_TF_srt$V2,
+             score = net1_PIDC_NT_TF_srt$V3)
+
+net2_PIDC_NT_file = file.path(inp_fold,
+                              "supercell",
+                              "PIDC",
+                              paste(sample2, ref_type, "PIDC_net.txt", sep = "_"))
+net2_PIDC_NT_all = read.table(net2_PIDC_NT_file, header = FALSE)
+ids = net2_PIDC_NT_all$V1 %in% targets2
+net2_PIDC_NT_TF <- net2_PIDC_NT_all[ids, ]
+srt <-
+  sort(net2_PIDC_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_PIDC_NT_TF_srt <- net2_PIDC_NT_TF[srt$ix, ]
+net2_PIDC_NT_TF_edges <-
+  data.frame(source = net2_PIDC_NT_TF_srt$V1,
+             target = net2_PIDC_NT_TF_srt$V2,
+             score = net2_PIDC_NT_TF_srt$V3)
+
+net3_PIDC_NT_file = file.path(inp_fold,
+                              "supercell",
+                              "PIDC",
+                              paste(sample3, ref_type, "PIDC_net.txt", sep = "_"))
+net3_PIDC_NT_all = read.table(net3_PIDC_NT_file, header = FALSE)
+ids = net3_PIDC_NT_all$V1 %in% targets3
+net3_PIDC_NT_TF <- net3_PIDC_NT_all[ids, ]
+srt <-
+  sort(net3_PIDC_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_PIDC_NT_TF_srt <- net3_PIDC_NT_TF[srt$ix, ]
+net3_PIDC_NT_TF_edges <-
+  data.frame(source = net3_PIDC_NT_TF_srt$V1,
+             target = net3_PIDC_NT_TF_srt$V2,
+             score = net3_PIDC_NT_TF_srt$V3)
+
+net4_PIDC_NT_file = file.path(inp_fold,
+                              "supercell",
+                              "PIDC",
+                              paste(sample4, ref_type, "PIDC_net.txt", sep = "_"))
+net4_PIDC_NT_all = read.table(net4_PIDC_NT_file, header = FALSE)
+ids = net4_PIDC_NT_all$V1 %in% targets4
+net4_PIDC_NT_TF <- net4_PIDC_NT_all[ids, ]
+srt <-
+  sort(net4_PIDC_NT_TF$V3,
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_PIDC_NT_TF_srt <- net4_PIDC_NT_TF[srt$ix, ]
+net4_PIDC_NT_TF_edges <-
+  data.frame(source = net4_PIDC_NT_TF_srt$V1,
+             target = net4_PIDC_NT_TF_srt$V2,
+             score = net4_PIDC_NT_TF_srt$V3)
+```
+
+
+```{r}
+rm(net1_PIDC_NT_all)
+rm(net2_PIDC_NT_all)
+rm(net3_PIDC_NT_all)
+rm(net4_PIDC_NT_all)
+```
+
+
+```{r}
+net_SJ <- net1_SJ_NT_TF_edges_MI
+net_GRNB2 <- net1_GRNB2_NT_TF_edges
+net_GN3 <- net1_GN3_NT_TF_edges
+net_PIDC <- net1_PIDC_NT_TF_edges
+net1_tar_n <-
+  sapply(targets1, function(tf)
+    min(
+      sum(net_SJ$source == tf),
+      sum(net_GRNB2$source == tf),
+      sum(net_GN3$source == tf),
+      sum(net_PIDC$source == tf)
+    ))
+net1_tar_n <- as.list(net1_tar_n)
+
+net_SJ <- net2_SJ_NT_TF_edges_MI
+net_GRNB2 <- net2_GRNB2_NT_TF_edges
+net_GN3 <- net2_GN3_NT_TF_edges
+net_PIDC <- net2_PIDC_NT_TF_edges
+net2_tar_n <-
+  sapply(targets2, function(tf)
+    min(
+      sum(net_SJ$source == tf),
+      sum(net_GRNB2$source == tf),
+      sum(net_GN3$source == tf),
+      sum(net_PIDC$source == tf)
+    ))
+net2_tar_n <- as.list(net2_tar_n)
+
+net_SJ <- net3_SJ_NT_TF_edges_MI
+net_GRNB2 <- net3_GRNB2_NT_TF_edges
+net_GN3 <- net3_GN3_NT_TF_edges
+net_PIDC <- net3_PIDC_NT_TF_edges
+net3_tar_n <-
+  sapply(targets3, function(tf)
+    min(
+      sum(net_SJ$source == tf),
+      sum(net_GRNB2$source == tf),
+      sum(net_GN3$source == tf),
+      sum(net_PIDC$source == tf)
+    ))
+net3_tar_n <- as.list(net3_tar_n)
+
+net_SJ <- net4_SJ_NT_TF_edges_MI
+net_GRNB2 <- net4_GRNB2_NT_TF_edges
+net_GN3 <- net4_GN3_NT_TF_edges
+net_PIDC <- net4_PIDC_NT_TF_edges
+net4_tar_n <-
+  sapply(targets4, function(tf)
+    min(
+      sum(net_SJ$source == tf),
+      sum(net_GRNB2$source == tf),
+      sum(net_GN3$source == tf),
+      sum(net_PIDC$source == tf)
+    ))
+net4_tar_n <- as.list(net4_tar_n)
+```
+
+
+```{r}
+net <- net1_SJ_NT_TF_edges_MI
+net1_SJ_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets1, function(target)
+    net[net$source == target, ][1:net1_tar_n[[target]], ]))
+srt <-
+  sort(net1_SJ_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_SJ_NT_TF_edges_red <- net1_SJ_NT_TF_edges_red[srt$ix, ]
+
+net <- net2_SJ_NT_TF_edges_MI
+net2_SJ_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets2, function(target)
+    net[net$source == target, ][1:net2_tar_n[[target]], ]))
+srt <-
+  sort(net2_SJ_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_SJ_NT_TF_edges_red <- net2_SJ_NT_TF_edges_red[srt$ix, ]
+
+net <- net3_SJ_NT_TF_edges_MI
+net3_SJ_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets3, function(target)
+    net[net$source == target, ][1:net3_tar_n[[target]], ]))
+srt <-
+  sort(net3_SJ_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_SJ_NT_TF_edges_red <- net3_SJ_NT_TF_edges_red[srt$ix, ]
+
+net <- net4_SJ_NT_TF_edges_MI
+net4_SJ_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets4, function(target)
+    net[net$source == target, ][1:net4_tar_n[[target]], ]))
+srt <-
+  sort(net4_SJ_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_SJ_NT_TF_edges_red <- net4_SJ_NT_TF_edges_red[srt$ix, ]
+```
+
+
+```{r}
+net <- net1_GRNB2_NT_TF_edges
+net1_GRNB2_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets1, function(target)
+    net[net$source == target, ][1:net1_tar_n[[target]], ]))
+srt <-
+  sort(net1_GRNB2_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_GRNB2_NT_TF_edges_red <- net1_GRNB2_NT_TF_edges_red[srt$ix, ]
+
+net <- net2_GRNB2_NT_TF_edges
+net2_GRNB2_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets2, function(target)
+    net[net$source == target, ][1:net2_tar_n[[target]], ]))
+srt <-
+  sort(net2_GRNB2_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_GRNB2_NT_TF_edges_red <- net2_GRNB2_NT_TF_edges_red[srt$ix, ]
+
+net <- net3_GRNB2_NT_TF_edges
+net3_GRNB2_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets3, function(target)
+    net[net$source == target, ][1:net3_tar_n[[target]], ]))
+srt <-
+  sort(net3_GRNB2_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_GRNB2_NT_TF_edges_red <- net3_GRNB2_NT_TF_edges_red[srt$ix, ]
+
+net <- net4_GRNB2_NT_TF_edges
+net4_GRNB2_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets4, function(target)
+    net[net$source == target, ][1:net4_tar_n[[target]], ]))
+srt <-
+  sort(net4_GRNB2_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_GRNB2_NT_TF_edges_red <- net4_GRNB2_NT_TF_edges_red[srt$ix, ]
+```
+
+
+```{r}
+net <- net1_GN3_NT_TF_edges
+net1_GN3_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets1, function(target)
+    net[net$source == target, ][1:net1_tar_n[[target]], ]))
+srt <-
+  sort(net1_GN3_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_GN3_NT_TF_edges_red <- net1_GN3_NT_TF_edges_red[srt$ix, ]
+
+net <- net2_GN3_NT_TF_edges
+net2_GN3_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets2, function(target)
+    net[net$source == target, ][1:net2_tar_n[[target]], ]))
+srt <-
+  sort(net2_GN3_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_GN3_NT_TF_edges_red <- net2_GN3_NT_TF_edges_red[srt$ix, ]
+
+net <- net3_GN3_NT_TF_edges
+net3_GN3_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets3, function(target)
+    net[net$source == target, ][1:net3_tar_n[[target]], ]))
+srt <-
+  sort(net3_GN3_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_GN3_NT_TF_edges_red <- net3_GN3_NT_TF_edges_red[srt$ix, ]
+
+net <- net4_GN3_NT_TF_edges
+net4_GN3_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets4, function(target)
+    net[net$source == target, ][1:net4_tar_n[[target]], ]))
+srt <-
+  sort(net4_GN3_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_GN3_NT_TF_edges_red <- net4_GN3_NT_TF_edges_red[srt$ix, ]
+```
+
+
+```{r}
+net <- net1_PIDC_NT_TF_edges
+net1_PIDC_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets1, function(target)
+    net[net$source == target, ][1:net1_tar_n[[target]], ]))
+srt <-
+  sort(net1_PIDC_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_PIDC_NT_TF_edges_red <- net1_PIDC_NT_TF_edges_red[srt$ix, ]
+
+net <- net2_PIDC_NT_TF_edges
+net2_PIDC_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets2, function(target)
+    net[net$source == target, ][1:net2_tar_n[[target]], ]))
+srt <-
+  sort(net2_PIDC_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_PIDC_NT_TF_edges_red <- net2_PIDC_NT_TF_edges_red[srt$ix, ]
+
+net <- net3_PIDC_NT_TF_edges
+net3_PIDC_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets3, function(target)
+    net[net$source == target, ][1:net3_tar_n[[target]], ]))
+srt <-
+  sort(net3_PIDC_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_PIDC_NT_TF_edges_red <- net3_PIDC_NT_TF_edges_red[srt$ix, ]
+
+net <- net4_PIDC_NT_TF_edges
+net4_PIDC_NT_TF_edges_red <-
+  Reduce(rbind, lapply(targets4, function(target)
+    net[net$source == target, ][1:net4_tar_n[[target]], ]))
+srt <-
+  sort(net4_PIDC_NT_TF_edges_red$score,
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_PIDC_NT_TF_edges_red <- net4_PIDC_NT_TF_edges_red[srt$ix, ]
+```
+
+
+```{r}
+get_ES <-
+  function(rank_profile = NULL,
+           use_genes = NULL,
+           weighted.score.type = 1) {
+    gene.list <- names(rank_profile)
+    correl.vector <- rank_profile
+    tag.indicator <-
+      sign(match(gene.list, use_genes, nomatch = 0))# notice that the sign is 0 (no tag) or 1 (tag)
+    no.tag.indicator <- 1 - tag.indicator
+    N <- length(gene.list)
+    Nh <- length(use_genes)
+    Nm <-  N - Nh
+    if (weighted.score.type == 0) {
+      correl.vector <- rep(1, N)
+    }
+    alpha <- weighted.score.type
+    correl.vector <- abs(correl.vector ** alpha)
+    sum.correl.tag    <- sum(correl.vector[tag.indicator == 1])
+    norm.tag    <- 1.0 / sum.correl.tag
+    norm.no.tag <- 1.0 / Nm
+    RES <-
+      cumsum(tag.indicator * correl.vector * norm.tag - no.tag.indicator * norm.no.tag)
+    max.ES <- max(RES)
+    min.ES <- min(RES)
+    if (isTRUE(max.ES > -min.ES)) {
+      #      ES <- max.ES
+      ES <- signif(max.ES, digits = 5)
+      arg.ES <- which.max(RES)
+    } else {
+      #      ES <- min.ES
+      ES <- signif(min.ES, digits = 5)
+      arg.ES <- which.min(RES)
+    }
+    return(list(
+      ES = ES,
+      arg.ES = arg.ES,
+      RES = RES,
+      indicator = tag.indicator
+    ))
+  }
+
+
+
+
+library(SINBA)
+library(metap)
+
+#min_pv = 2.2e-16
+
+comp_ES_all_pos_neg = function(gene, smpl, lfc_data, net) {
+  print(c(gene, smpl))
+  rank_profile <- lfc_data[[smpl]][[gene]]$logFC
+  names(rank_profile) <- rownames(lfc_data[[smpl]][[gene]])
+  rank_profile_abs <- sort(abs(rank_profile), decreasing = TRUE)
+  
+  gene_set_pos <- net$target[net$source == gene & net$sign == 1]
+  gene_set_pos <- gene_set_pos[gene_set_pos %in% names(rank_profile)]
+  rank_set_pos <- names(rank_profile)[names(rank_profile) %in% gene_set_pos]
+  rank_set_pos_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set_pos]
+  
+  ES_res_pos = list()
+  ES_res_pos$ks_pv = NA
+  ES_res_pos$D = NA
+  ES_res_pos$r_p = NA
+  ES_res_pos$ks_res = NA
+  ES_res_pos$sp_cor = NA
+  ES_res_pos$sp_cor_abs = NA
+  if (!isEmpty(gene_set_pos)) {
+    ES_res_pos <- get_ES(rank_profile, gene_set_pos)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set_pos])
+    ES_res_pos$ks_pv <- ks_res$p.value
+    ES_res_pos$D <- ks_res$statistic
+    ES_res_pos$r_p <- rank_profile
+    ES_res_pos$ks_res <- ks_res
+    if (length(gene_set_pos) > 1) {
+      ES_res_pos$sp_cor <- as.numeric(cor.test(
+        x = match(gene_set_pos, gene_set_pos),
+        y = match(gene_set_pos, rank_set_pos),
+        method = "spearman"
+      )$estimate)
+      ES_res_pos$sp_cor_abs <- as.numeric(cor.test(
+        x = match(gene_set_pos, gene_set_pos),
+        y = match(gene_set_pos, rank_set_pos_abs),
+        method = "spearman"
+      )$estimate)
+    }
+  }
+  ES_res_pos$gene_set = gene_set_pos
+  
+  gene_set_neg <- net$target[net$source == gene & net$sign == -1]
+  gene_set_neg <- gene_set_neg[gene_set_neg %in% names(rank_profile)]
+  rank_set_neg <- names(rank_profile)[names(rank_profile) %in% gene_set_neg]
+  rank_set_neg_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set_neg]
+  
+  ES_res_neg = list()
+  ES_res_neg$ks_pv = NA
+  ES_res_neg$D = NA
+  ES_res_neg$r_p = NA
+  ES_res_neg$ks_res = NA
+  ES_res_neg$sp_cor = NA
+  ES_res_neg$sp_cor_abs = NA
+  if (!isEmpty(gene_set_neg)) {
+    ES_res_neg <- get_ES(rank_profile, gene_set_neg)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set_neg])
+    ES_res_neg$ks_pv <- ks_res$p.value
+    ES_res_neg$D <- ks_res$statistic
+    ES_res_neg$r_p <- rank_profile
+    ES_res_neg$ks_res <- ks_res
+    if (length(gene_set_neg) > 1) {
+      ES_res_neg$sp_cor <- as.numeric(cor.test(
+        x = match(gene_set_neg, gene_set_neg),
+        y = match(gene_set_neg, rank_set_neg),
+        method = "spearman"
+      )$estimate)
+      ES_res_neg$sp_cor_abs <- as.numeric(cor.test(
+        x = match(gene_set_neg, gene_set_neg),
+        y = match(gene_set_neg, rank_set_neg_abs),
+        method = "spearman"
+      )$estimate)
+    }
+  }
+  ES_res_neg$gene_set = gene_set_neg
+  
+  gene_set <- net$target[net$source == gene]
+  gene_set <- gene_set[gene_set %in% names(rank_profile)]
+  rank_set <- names(rank_profile)[names(rank_profile) %in% gene_set]
+  rank_set_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set]
+  
+  ES_res = list()
+  ES_res$ks_pv = NA
+  ES_res$D = NA
+  ES_res$r_p = NA
+  ES_res$ks_res = NA
+  ES_res$sp_cor = NA
+  ES_res$sp_cor_abs = NA
+  if (!isEmpty(gene_set)) {
+    ES_res <- get_ES(rank_profile, gene_set)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set])
+    ES_res$ks_pv <- ks_res$p.value
+    ES_res$D <- ks_res$statistic
+    ES_res$r_p <- rank_profile
+    ES_res$ks_res <- ks_res
+    #pv1 = max(ES_res_pos$ks_pv, min_pv)
+    #pv2 = max(ES_res_neg$ks_pv, min_pv)
+    pv1 = ES_res_pos$ks_pv
+    pv2 = ES_res_neg$ks_pv
+    if ((!is.na(pv1)) & (!is.na(pv2))) {
+      ES_res$fisher_pv <- sumlog(c(pv1, pv2))$p
+    }
+    if (length(gene_set) > 1) {
+      ES_res$sp_cor <- as.numeric(cor.test(
+        x = match(gene_set, gene_set),
+        y = match(gene_set, rank_set),
+        method = "spearman"
+      )$estimate)
+      ES_res$sp_cor_abs <- as.numeric(cor.test(
+        x = match(gene_set, gene_set),
+        y = match(gene_set, rank_set_abs),
+        method = "spearman"
+      )$estimate)
+    }
+  }
+  ES_res$gene_set = gene_set
+  
+  return(
+    list(
+      "all" = ES_res,
+      "pos" = ES_res_pos,
+      "neg" = ES_res_neg,
+      "rank_profile" = rank_profile
+    )
+  )
+}
+
+comp_ES_all = function(gene, smpl, lfc_data, net) {
+  print(c(gene, smpl))
+  rank_profile <- lfc_data[[smpl]][[gene]]$logFC
+  names(rank_profile) <- rownames(lfc_data[[smpl]][[gene]])
+  rank_profile_abs <- sort(abs(rank_profile), decreasing = TRUE)
+  
+  gene_set <- net$target[net$source == gene]
+  gene_set <- gene_set[gene_set %in% names(rank_profile)]
+  rank_set <- names(rank_profile)[names(rank_profile) %in% gene_set]
+  rank_set_abs <- names(rank_profile_abs)[names(rank_profile_abs) %in% gene_set]
+  
+  ES_res = list()
+  ES_res$ks_pv = NA
+  ES_res$D = NA
+  ES_res$r_p = NA
+  ES_res$ks_res = NA
+  ES_res$sp_cor = NA
+  ES_res$sp_cor_abs = NA
+  if (!isEmpty(gene_set)) {
+    ES_res <- get_ES(rank_profile, gene_set)
+    ks_res <- ks.test(rank_profile, rank_profile[gene_set])
+    ES_res$ks_pv <- ks_res$p.value
+    ES_res$D <- ks_res$statistic
+    ES_res$r_p <- rank_profile
+    ES_res$ks_res <- ks_res
+    if (length(gene_set) > 1) {
+      ES_res$sp_cor <- as.numeric(cor.test(
+        x = match(gene_set, gene_set),
+        y = match(gene_set, rank_set),
+        method = "spearman"
+      )$estimate)
+      ES_res$sp_cor_abs <- as.numeric(cor.test(
+        x = match(gene_set, gene_set),
+        y = match(gene_set, rank_set_abs),
+        method = "spearman"
+      )$estimate)
+    }
+  }
+  ES_res$gene_set = gene_set
+  
+  return(list("all" = ES_res, "rank_profile" = rank_profile))
+}
+```
+
+
+```{r}
+lfc_data = list()
+for (smpl in names(lfc_all)) {
+  lfc_data[[smpl]] = list()
+  for (target in names(lfc_all[[smpl]][[ref_type]])) {
+    lfc = lfc_all[[smpl]][[ref_type]][[target]]$logFC
+    names(lfc) = lfc_all[[smpl]][[ref_type]][[target]]$gene
+    lfc = sort(lfc, decreasing = TRUE)
+    df = data.frame(logFC = lfc)
+    rownames(df) = names(lfc)
+    lfc_data[[smpl]][[target]] = df
+  }
+}
+```
+
+
+```{r}
+GSEA_scMINER = list()
+
+GSEA_scMINER[[sample1]] <-
+  lapply(targets1, function(target)
+    comp_ES_all_pos_neg(target, sample1, lfc_data, net1_SJ_NT_TF_edges_red))
+names(GSEA_scMINER[[sample1]]) <- targets1
+GSEA_scMINER[[sample2]] <-
+  lapply(targets2, function(target)
+    comp_ES_all_pos_neg(target, sample2, lfc_data, net2_SJ_NT_TF_edges_red))
+names(GSEA_scMINER[[sample2]]) <- targets2
+GSEA_scMINER[[sample3]] <-
+  lapply(targets3, function(target)
+    comp_ES_all_pos_neg(target, sample3, lfc_data, net3_SJ_NT_TF_edges_red))
+names(GSEA_scMINER[[sample3]]) <- targets3
+GSEA_scMINER[[sample4]] <-
+  lapply(targets4, function(target)
+    comp_ES_all_pos_neg(target, sample4, lfc_data, net4_SJ_NT_TF_edges_red))
+names(GSEA_scMINER[[sample4]]) <- targets4
+```
+
+
+```{r}
+GSEA_GRNB2 = list()
+
+GSEA_GRNB2[[sample1]] <-
+  lapply(targets1, function(target)
+    comp_ES_all_pos_neg(target, sample1, lfc_data, net1_GRNB2_NT_TF_edges_red))
+names(GSEA_GRNB2[[sample1]]) <- targets1
+GSEA_GRNB2[[sample2]] <-
+  lapply(targets2, function(target)
+    comp_ES_all_pos_neg(target, sample2, lfc_data, net2_GRNB2_NT_TF_edges_red))
+names(GSEA_GRNB2[[sample2]]) <- targets2
+GSEA_GRNB2[[sample3]] <-
+  lapply(targets3, function(target)
+    comp_ES_all_pos_neg(target, sample3, lfc_data, net3_GRNB2_NT_TF_edges_red))
+names(GSEA_GRNB2[[sample3]]) <- targets3
+GSEA_GRNB2[[sample4]] <-
+  lapply(targets4, function(target)
+    comp_ES_all_pos_neg(target, sample4, lfc_data, net4_GRNB2_NT_TF_edges_red))
+names(GSEA_GRNB2[[sample4]]) <- targets4
+```
+
+
+```{r}
+GSEA_GN3 = list()
+
+GSEA_GN3[[sample1]] <-
+  lapply(targets1, function(target)
+    comp_ES_all_pos_neg(target, sample1, lfc_data, net1_GN3_NT_TF_edges_red))
+names(GSEA_GN3[[sample1]]) <- targets1
+GSEA_GN3[[sample2]] <-
+  lapply(targets2, function(target)
+    comp_ES_all_pos_neg(target, sample2, lfc_data, net2_GN3_NT_TF_edges_red))
+names(GSEA_GN3[[sample2]]) <- targets2
+GSEA_GN3[[sample3]] <-
+  lapply(targets3, function(target)
+    comp_ES_all_pos_neg(target, sample3, lfc_data, net3_GN3_NT_TF_edges_red))
+names(GSEA_GN3[[sample3]]) <- targets3
+GSEA_GN3[[sample4]] <-
+  lapply(targets4, function(target)
+    comp_ES_all_pos_neg(target, sample4, lfc_data, net4_GN3_NT_TF_edges_red))
+names(GSEA_GN3[[sample4]]) <- targets4
+```
+
+
+```{r}
+GSEA_PIDC = list()
+
+GSEA_PIDC[[sample1]] <-
+  lapply(targets1, function(target)
+    comp_ES_all_pos_neg(target, sample1, lfc_data, net1_PIDC_NT_TF_edges_red))
+names(GSEA_PIDC[[sample1]]) <- targets1
+GSEA_PIDC[[sample2]] <-
+  lapply(targets2, function(target)
+    comp_ES_all_pos_neg(target, sample2, lfc_data, net2_PIDC_NT_TF_edges_red))
+names(GSEA_PIDC[[sample2]]) <- targets2
+GSEA_PIDC[[sample3]] <-
+  lapply(targets3, function(target)
+    comp_ES_all_pos_neg(target, sample3, lfc_data, net3_PIDC_NT_TF_edges_red))
+names(GSEA_PIDC[[sample3]]) <- targets3
+GSEA_PIDC[[sample4]] <-
+  lapply(targets4, function(target)
+    comp_ES_all_pos_neg(target, sample4, lfc_data, net4_PIDC_NT_TF_edges_red))
+names(GSEA_PIDC[[sample4]]) <- targets4
+```
+
+
+```{r}
+save_file = file.path(inp_fold, paste(ref_type, "_TF_net.Rdata", sep = ''))
+save(
+  file = save_file,
+  targets1,
+  targets2,
+  targets3,
+  targets4,
+  net1_SJ_NT_TF_edges_red,
+  net2_SJ_NT_TF_edges_red,
+  net3_SJ_NT_TF_edges_red,
+  net4_SJ_NT_TF_edges_red,
+  net1_GRNB2_NT_TF_edges_red,
+  net2_GRNB2_NT_TF_edges_red,
+  net3_GRNB2_NT_TF_edges_red,
+  net4_GRNB2_NT_TF_edges_red,
+  net1_GN3_NT_TF_edges_red,
+  net2_GN3_NT_TF_edges_red,
+  net3_GN3_NT_TF_edges_red,
+  net4_GN3_NT_TF_edges_red,
+  net1_PIDC_NT_TF_edges_red,
+  net2_PIDC_NT_TF_edges_red,
+  net3_PIDC_NT_TF_edges_red,
+  net4_PIDC_NT_TF_edges_red
+)
+
+save_file = file.path(inp_fold, paste(ref_type, "_TF_GSEA.Rdata", sep = ''))
+save(
+  file = save_file,
+  GSEA_scMINER,
+  GSEA_GRNB2,
+  GSEA_GN3,
+  GSEA_PIDC
+)
+```
+
+
+
+```{r}
+net1_SJ_NT_SIG_file = file.path(SJ_fold1,
+                                paste("sig_", pv, sep = ""),
+                                "consensus_network_ncol_.txt")
+net1_SJ_NT_SIG = read.table(net1_SJ_NT_SIG_file, header = TRUE)
+srt <-
+  sort(abs(net1_SJ_NT_SIG$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net1_SJ_NT_SIG_srt <- net1_SJ_NT_SIG[srt$ix, ]
+net1_SJ_NT_SIG_edges_corr <-
+  data.frame(
+    source = net1_SJ_NT_SIG_srt$source,
+    target = net1_SJ_NT_SIG_srt$target,
+    score = abs(net1_SJ_NT_SIG_srt$spearman),
+    sign = sign(net1_SJ_NT_SIG_srt$spearman)
+  )
+srt <- sort(net1_SJ_NT_SIG$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net1_SJ_NT_SIG_srt <- net1_SJ_NT_SIG[srt$ix, ]
+net1_SJ_NT_SIG_edges_MI <-
+  data.frame(
+    source = net1_SJ_NT_SIG_srt$source,
+    target = net1_SJ_NT_SIG_srt$target,
+    score = net1_SJ_NT_SIG_srt$MI,
+    sign = sign(net1_SJ_NT_SIG_srt$spearman)
+  )
+
+net2_SJ_NT_SIG_file = file.path(SJ_fold2,
+                                paste("sig_", pv, sep = ""),
+                                "consensus_network_ncol_.txt")
+net2_SJ_NT_SIG = read.table(net2_SJ_NT_SIG_file, header = TRUE)
+srt <-
+  sort(abs(net2_SJ_NT_SIG$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net2_SJ_NT_SIG_srt <- net2_SJ_NT_SIG[srt$ix, ]
+net2_SJ_NT_SIG_edges_corr <-
+  data.frame(
+    source = net2_SJ_NT_SIG_srt$source,
+    target = net2_SJ_NT_SIG_srt$target,
+    score = abs(net2_SJ_NT_SIG_srt$spearman),
+    sign = sign(net2_SJ_NT_SIG_srt$spearman)
+  )
+srt <- sort(net2_SJ_NT_SIG$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net2_SJ_NT_SIG_srt <- net2_SJ_NT_SIG[srt$ix, ]
+net2_SJ_NT_SIG_edges_MI <-
+  data.frame(
+    source = net2_SJ_NT_SIG_srt$source,
+    target = net2_SJ_NT_SIG_srt$target,
+    score = net2_SJ_NT_SIG_srt$MI,
+    sign = sign(net2_SJ_NT_SIG_srt$spearman)
+  )
+
+net3_SJ_NT_SIG_file = file.path(SJ_fold3,
+                                paste("sig_", pv, sep = ""),
+                                "consensus_network_ncol_.txt")
+net3_SJ_NT_SIG = read.table(net3_SJ_NT_SIG_file, header = TRUE)
+srt <-
+  sort(abs(net3_SJ_NT_SIG$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net3_SJ_NT_SIG_srt <- net3_SJ_NT_SIG[srt$ix, ]
+net3_SJ_NT_SIG_edges_corr <-
+  data.frame(
+    source = net3_SJ_NT_SIG_srt$source,
+    target = net3_SJ_NT_SIG_srt$target,
+    score = abs(net3_SJ_NT_SIG_srt$spearman),
+    sign = sign(net3_SJ_NT_SIG_srt$spearman)
+  )
+srt <- sort(net3_SJ_NT_SIG$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net3_SJ_NT_SIG_srt <- net3_SJ_NT_SIG[srt$ix, ]
+net3_SJ_NT_SIG_edges_MI <-
+  data.frame(
+    source = net3_SJ_NT_SIG_srt$source,
+    target = net3_SJ_NT_SIG_srt$target,
+    score = net3_SJ_NT_SIG_srt$MI,
+    sign = sign(net3_SJ_NT_SIG_srt$spearman)
+  )
+
+net4_SJ_NT_SIG_file = file.path(SJ_fold4,
+                                paste("sig_", pv, sep = ""),
+                                "consensus_network_ncol_.txt")
+net4_SJ_NT_SIG = read.table(net4_SJ_NT_SIG_file, header = TRUE)
+srt <-
+  sort(abs(net4_SJ_NT_SIG$spearman),
+       decreasing = TRUE,
+       index.return = TRUE)
+net4_SJ_NT_SIG_srt <- net4_SJ_NT_SIG[srt$ix, ]
+net4_SJ_NT_SIG_edges_corr <-
+  data.frame(
+    source = net4_SJ_NT_SIG_srt$source,
+    target = net4_SJ_NT_SIG_srt$target,
+    score = abs(net4_SJ_NT_SIG_srt$spearman),
+    sign = sign(net4_SJ_NT_SIG_srt$spearman)
+  )
+srt <- sort(net4_SJ_NT_SIG$MI,
+            decreasing = TRUE,
+            index.return = TRUE)
+net4_SJ_NT_SIG_srt <- net4_SJ_NT_SIG[srt$ix, ]
+net4_SJ_NT_SIG_edges_MI <-
+  data.frame(
+    source = net4_SJ_NT_SIG_srt$source,
+    target = net4_SJ_NT_SIG_srt$target,
+    score = net4_SJ_NT_SIG_srt$MI,
+    sign = sign(net4_SJ_NT_SIG_srt$spearman)
+  )
+```
+
+
+```{r}
+load("/Volumes/shladysh/scMINER/figures/CROP_Seq_GRN_evaluation/Yao_Regev_Cleary/data/tf_sigs_hg.RData")
+only_sig_gene = tf_sigs$geneSymbol[tf_sigs$funcType == "SIG"]
+```
+
+
+```{r}
+targets1 <-
+  unique(sort(colData(sce1_filt)$Guides_collapsed_by_gene))
+targets1 <-
+  targets1[!(targets1 %in% c("safe-targeting", "non-targeting"))]
+targets1 <- targets1[targets1 %in% rownames(sce1_filt)]
+targets1 <-
+  targets1[targets1 %in% unique(sort(net1_SJ_NT_SIG_edges_MI$source))]
+targets1 <- targets1[targets1 %in% only_sig_gene]
+
+targets2 <-
+  unique(sort(colData(sce2_filt)$Guides_collapsed_by_gene))
+targets2 <-
+  targets2[!(targets2 %in% c("safe-targeting", "non-targeting"))]
+targets2 <- targets2[targets2 %in% rownames(sce2_filt)]
+targets2 <-
+  targets2[targets2 %in% unique(sort(net2_SJ_NT_SIG_edges_MI$source))]
+targets2 <- targets2[targets2 %in% only_sig_gene]
+
+targets3 <-
+  unique(sort(colData(sce3_filt)$Guides_collapsed_by_gene))
+targets3 <-
+  targets3[!(targets3 %in% c("safe-targeting", "non-targeting"))]
+targets3 <- targets3[targets3 %in% rownames(sce3_filt)]
+targets3 <-
+  targets3[targets3 %in% unique(sort(net3_SJ_NT_SIG_edges_MI$source))]
+targets3 <- targets3[targets3 %in% only_sig_gene]
+
+targets4 <-
+  unique(sort(colData(sce4_filt)$Guides_collapsed_by_gene))
+targets4 <-
+  targets4[!(targets4 %in% c("safe-targeting", "non-targeting"))]
+targets4 <- targets4[targets4 %in% rownames(sce4_filt)]
+targets4 <-
+  targets4[targets4 %in% unique(sort(net4_SJ_NT_SIG_edges_MI$source))]
+targets4 <- targets4[targets4 %in% only_sig_gene]
+```
+
+
+```{r}
+GSEA_scMINER_SIG = list()
+
+GSEA_scMINER_SIG[[sample1]] <-
+  lapply(targets1, function(target)
+    comp_ES_all_pos_neg(target, sample1, lfc_data, net1_SJ_NT_SIG_edges_MI))
+names(GSEA_scMINER_SIG[[sample1]]) <- targets1
+GSEA_scMINER_SIG[[sample2]] <-
+  lapply(targets2, function(target)
+    comp_ES_all_pos_neg(target, sample2, lfc_data, net2_SJ_NT_SIG_edges_MI))
+names(GSEA_scMINER_SIG[[sample2]]) <- targets2
+GSEA_scMINER_SIG[[sample3]] <-
+  lapply(targets3, function(target)
+    comp_ES_all_pos_neg(target, sample3, lfc_data, net3_SJ_NT_SIG_edges_MI))
+names(GSEA_scMINER_SIG[[sample3]]) <- targets3
+GSEA_scMINER_SIG[[sample4]] <-
+  lapply(targets4, function(target)
+    comp_ES_all_pos_neg(target, sample4, lfc_data, net4_SJ_NT_SIG_edges_MI))
+names(GSEA_scMINER_SIG[[sample4]]) <- targets4
+```
+
+
+```{r}
+save_file = file.path(inp_fold, paste(ref_type, "_SIG_net.Rdata", sep = ''))
+save(file = save_file,
+  targets1,
+  targets2,
+  targets3,
+  targets4,
+  net1_SJ_NT_SIG_edges_MI,
+  net2_SJ_NT_SIG_edges_MI,
+  net3_SJ_NT_SIG_edges_MI,
+  net4_SJ_NT_SIG_edges_MI)
+
+save_file = file.path(inp_fold, paste(ref_type, "_SIG_GSEA.Rdata", sep = ''))
+save(file = save_file, GSEA_scMINER_SIG)
+
+```
+
