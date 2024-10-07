@@ -1,0 +1,1579 @@
+---
+title: "plot_results_PBMC"
+output: html_document
+date: "2024-07-31"
+---
+
+```{r}
+rm(list = ls())
+```
+
+```{r}
+set.seed(100) 
+```
+
+```{r}
+library(Seurat)
+library(NetBID2)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(grid)
+library(dplyr)
+library(scMINER)
+library(patchwork)
+library(gplots)
+library(DropletUtils)
+library(scater)
+library(scran)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(EnsDb.Mmusculus.v79)
+library(hrbrthemes)
+library(ggpubr)
+library(rstatix)
+library(reshape)
+library(RColorBrewer)
+#display.brewer.all()
+library(pals)
+library(SingleR)
+library(pheatmap)
+library(igraph)
+library(ggraph)
+library(graphlayouts)
+library(ggforce)
+library(scDblFinder)
+library(anndata)
+library(reticulate)
+```
+
+
+```{r}
+save_fold = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/plot"
+dir.create(save_fold)
+
+eset_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/log2cpm_filtered.8846_13605.rds"
+eset_cpm = readRDS(eset_file)
+cell_ids = colnames(eset_cpm)
+
+activity_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/scMINER_per_cell_type_activity_mean_netbid.Rdata"
+load(activity_file)
+eset_tf_ac_sing = eset_tf_ac[,cell_ids]
+eset_sig_ac_sing = eset_sig_ac[,cell_ids]
+eset_merge_ac_sing = eset_merge_ac[,cell_ids]
+
+glob_act_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/scMINER_supercell_global_activity_netbid_mean.Rdata"
+load(glob_act_file)
+eset_merge_ac_sup = eset_merge_ac[,cell_ids]
+
+scenic_auc_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/SCENIC_eset.RData"
+load(scenic_auc_file)
+eset_scenic_auc = eset_scenic_auc[,cell_ids]
+eset_scenic_auc_std = eset_scenic_auc_std[,cell_ids]
+
+mica_expr_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/expression_based_clustering_UMAP_euclidean_20_2.05.txt"
+mica_expr_data <- read.table(mica_expr_file, sep = '\t', header = TRUE)
+rownames(mica_expr_data) <- mica_expr_data$ID
+mica_expr_data <- mica_expr_data[cell_ids,]
+
+mica_act_scMINER_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/scMINER_activity_based_clustering_UMAP_euclidean_20_2.2.txt"
+mica_act_scMINER_data <- read.table(mica_act_scMINER_file, sep = '\t', header = TRUE)
+rownames(mica_act_scMINER_data) <- mica_act_scMINER_data$ID
+mica_act_scMINER_data <- mica_act_scMINER_data[cell_ids,]
+
+mica_act_SCENIC_file = "/Volumes/shladysh/scMINER/figures/scMINER_SCENIC_activity/PBMC_v3/data/SCENIC_activity_based_clustering_UMAP_euclidean_20_1.1.txt"
+mica_act_SCENIC_data <- read.table(mica_act_SCENIC_file, sep = '\t', header = TRUE)
+rownames(mica_act_SCENIC_data) <- mica_act_SCENIC_data$ID
+mica_act_SCENIC_data <- mica_act_SCENIC_data[cell_ids,]
+```
+
+
+```{r}
+ac_tf_sing = exprs(eset_tf_ac_sing)[,cell_ids]
+#for (i in 1:dim(ac_tf_sing)[2]){
+#  ac_tf_sing[is.na(ac_tf_sing[,i]),i] = min(ac_tf_sing[!is.na(ac_tf_sing[,i]),i])
+#}
+ac_tf_sing[is.na(ac_tf_sing)] = min(ac_tf_sing[!is.na(ac_tf_sing)])
+row_mean <- rowMeans(ac_tf_sing)
+row_stdev <- apply(ac_tf_sing, 1, sd, na.rm=TRUE)
+ac_tf_sing_row_norm <- (ac_tf_sing - row_mean)/row_stdev
+
+
+ac_sig_sing = exprs(eset_sig_ac_sing)[,cell_ids]
+#for (i in 1:dim(ac_sig_sing)[2]){
+#  ac_sig_sing[is.na(ac_sig_sing[,i]),i] = min(ac_sig_sing[!is.na(ac_sig_sing[,i]),i])
+#}
+ac_sig_sing[is.na(ac_sig_sing)] = min(ac_sig_sing[!is.na(ac_sig_sing)])
+row_mean <- rowMeans(ac_sig_sing)
+row_stdev <- apply(ac_sig_sing, 1, sd, na.rm=TRUE)
+ac_sig_sing_row_norm <- (ac_sig_sing - row_mean)/row_stdev
+
+ac_all_sing = exprs(eset_merge_ac_sing)[,cell_ids]
+#for (i in 1:dim(ac_all_sing)[2]){
+#  ac_all_sing[is.na(ac_all_sing[,i]),i] = min(ac_all_sing[!is.na(ac_all_sing[,i]),i])
+#}
+ac_all_sing[is.na(ac_all_sing)] = min(ac_all_sing[!is.na(ac_all_sing)])
+row_mean <- rowMeans(ac_all_sing)
+row_stdev <- apply(ac_all_sing, 1, sd, na.rm=TRUE)
+ac_all_sing_row_norm <- (ac_all_sing - row_mean)/row_stdev
+```
+
+
+```{r}
+ref_cell_order = c("Monocyte", "B", "NK", "CD8TN", "CD4Treg", "CD4TN", "CD4TCM")
+ref_cell_order = c("Monocyte", "B", "NK", "CD8TN", "CD4TN", "CD4Treg", "CD4TCM")
+```
+
+```{r, fig.width = 18, fig.height = 10}
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                true_label = as.factor(pData(eset_cpm)$true_label.refined))
+
+x_ampl = max(mica_expr_data$X) - min(mica_expr_data$X)
+x_min = min(mica_expr_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_expr_data$Y) - min(mica_expr_data$Y)
+y_min = min(mica_expr_data$Y) - 0.05*y_ampl
+
+colors = (scales::hue_pal())(7)
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = true_label)) + geom_point(size = 1) +
+  scale_colour_manual(values = c("Monocyte" = colors[1],
+                               "B" = colors[2],
+                               "NK" = colors[3],
+                               "CD8TN" = colors[4],
+                               "CD4TN" = colors[5],
+                               "CD4Treg" = colors[6],
+                               "CD4TCM" = colors[7]),
+                      breaks = ref_cell_order) +
+  guides(colour = guide_legend(override.aes = list(size=10), title="True label")) +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  theme_void(base_size = 30) + 
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_expression_true_label", ".png"))
+png(save_file, height=10, width=18, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_expression_true_label", ".pdf"))
+pdf(save_file, height=10, width=18)
+p
+dev.off()
+```
+
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                true_label = pData(eset_cpm)$true_label.refined)
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_expr_data$X) - min(mica_expr_data$X)
+x_min = min(mica_expr_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_expr_data$Y) - min(mica_expr_data$Y)
+y_min = min(mica_expr_data$Y) - 0.05*y_ampl
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = true_label)) + geom_point(size = 1) + 
+  guides(colour = guide_legend(override.aes = list(size=10), title="True label")) +
+  scale_colour_manual(values = c("Monocyte" = colors[1],
+                                 "B" = colors[2],
+                                 "NK" = colors[3],
+                                 "CD8TN" = colors[4],
+                                 "CD4TN" = colors[5],
+                                 "CD4Treg" = colors[6],
+                                 "CD4TCM" = colors[7]),
+                      breaks = ref_cell_order) +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_expression_true_label_no_legend", ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_expression_true_label_no_legend", ".pdf"))
+pdf(save_file, height=10, width=10)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "FOXP3"
+exp_vals = exprs(eset_cpm)[rownames(exprs(eset_cpm)) == gene,]
+scale_vals = (exp_vals - min(exp_vals))/(max(exp_vals) - min(exp_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                cell = mica_expr_data$ID, 
+                true_label = pData(eset_cpm)$true_label,
+                Expression = scale_vals)
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Expression)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " expression")) +
+  scale_color_gradient2(low = "grey80", mid = "blue", high = "blue", midpoint = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_expression_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_expression_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "FOXP3"
+act_vals = ac_tf_sing[rownames(ac_tf_sing) == gene, ]
+scale_vals = (act_vals - min(act_vals))/(max(act_vals) - min(act_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                cell = mica_expr_data$ID, 
+                Activity = scale_vals)
+
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Activity)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " scMINER activity")) +
+  scale_color_gradient2(low = "grey80", mid = "grey80", high = "blue", midpoint = 0.15) +
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_activity_scMINER_single_cells_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_activity_scMINER_single_cells_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "FOXP3"
+act_vals = as.vector(exprs(eset_scenic_auc[gene,]))
+scale_vals = (act_vals - min(act_vals))/(max(act_vals) - min(act_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                Activity = scale_vals)
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Activity)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " SCENIC activity")) +
+  scale_color_gradient2(low = "grey80", mid = "blue", high = "blue", midpoint = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_activity_SCENIC_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_activity_SCENIC_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "NCAM1"
+exp_vals = exprs(eset_cpm)[rownames(exprs(eset_cpm)) == gene,]
+scale_vals = (exp_vals - min(exp_vals))/(max(exp_vals) - min(exp_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                cell = mica_expr_data$ID, 
+                true_label = pData(eset_cpm)$true_label,
+                Expression = scale_vals)
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Expression)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " expression")) +
+  scale_color_gradient2(low = "grey80", mid = "blue", high = "blue", midpoint = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_expression_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_expression_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "NCAM1"
+act_vals = ac_sig_sing[rownames(ac_sig_sing) == gene, ]
+scale_vals = (act_vals - min(act_vals))/(max(act_vals) - min(act_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                cell = mica_expr_data$ID, 
+                Activity = scale_vals)
+
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Activity)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " scMINER activity")) +
+  scale_color_gradient2(low = "grey80", mid = "grey80", high = "blue", midpoint = 0.15) +
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_activity_scMINER_single_cells_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_activity_scMINER_single_cells_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "CD4"
+exp_vals = exprs(eset_cpm)[rownames(exprs(eset_cpm)) == gene,]
+scale_vals = (exp_vals - min(exp_vals))/(max(exp_vals) - min(exp_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                cell = mica_expr_data$ID, 
+                true_label = pData(eset_cpm)$true_label,
+                Expression = scale_vals)
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Expression)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " expression")) +
+  scale_color_gradient2(low = "grey80", mid = "blue", high = "blue", midpoint = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_expression_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_expression_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+
+```{r, fig.width = 10, fig.height = 10}
+gene = "CD4"
+act_vals = ac_sig_sing[rownames(ac_sig_sing) == gene, ]
+scale_vals = (act_vals - min(act_vals))/(max(act_vals) - min(act_vals))
+
+df = data.frame(UMAP1 = mica_expr_data$X, 
+                UMAP2 = mica_expr_data$Y, 
+                cell = mica_expr_data$ID, 
+                Activity = scale_vals)
+
+
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = Activity)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  ggtitle(paste0(gene, " scMINER activity")) +
+  scale_color_gradient2(low = "grey80", mid = "grey80", high = "blue", midpoint = 0.15) +
+  theme(plot.title = element_text(hjust = 0.5),
+        aspect.ratio = 1)
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_activity_scMINER_single_cells_", gene, ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_activity_scMINER_single_cells_", gene, ".pdf"))
+pdf(save_file, height=10, width=10)
+print(p)
+dev.off()
+```
+
+
+
+
+```{r, fig.width = 18, fig.height = 10}
+df = data.frame(UMAP1 = mica_act_scMINER_data$X, 
+                UMAP2 = mica_act_scMINER_data$Y, 
+                true_label = pData(eset_cpm)$true_label.refined)
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_act_scMINER_data$X) - min(mica_act_scMINER_data$X)
+x_min = min(mica_act_scMINER_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_act_scMINER_data$Y) - min(mica_act_scMINER_data$Y)
+y_min = min(mica_act_scMINER_data$Y) - 0.05*y_ampl
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = true_label)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  scale_colour_manual(values = c("Monocyte" = colors[1],
+                                 "B" = colors[2],
+                                 "NK" = colors[3],
+                                 "CD8TN" = colors[4],
+                                 "CD4TN" = colors[5],
+                                 "CD4Treg" = colors[6],
+                                 "CD4TCM" = colors[7]),
+                      breaks = ref_cell_order) +
+  #theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  guides(colour = guide_legend(override.aes = list(size=10), title="True label")) +
+  ggtitle(paste0("scMINER activity")) + 
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_scMINER_global_network_activity", "_true_label", ".png"))
+png(save_file, height=10, width=18, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_scMINER_global_network_activity", "_true_label", ".pdf"))
+pdf(save_file, height=10, width=18)
+p
+dev.off()
+```
+
+
+```{r, fig.width = 10, fig.height = 10}
+df = data.frame(UMAP1 = mica_act_scMINER_data$X, 
+                UMAP2 = mica_act_scMINER_data$Y, 
+                true_label = pData(eset_cpm)$true_label.refined)
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_act_scMINER_data$X) - min(mica_act_scMINER_data$X)
+x_min = min(mica_act_scMINER_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_act_scMINER_data$Y) - min(mica_act_scMINER_data$Y)
+y_min = min(mica_act_scMINER_data$Y) - 0.05*y_ampl
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = true_label)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  scale_colour_manual(values = c("Monocyte" = colors[1],
+                                 "B" = colors[2],
+                                 "NK" = colors[3],
+                                 "CD8TN" = colors[4],
+                                 "CD4TN" = colors[5],
+                                 "CD4Treg" = colors[6],
+                                 "CD4TCM" = colors[7]),
+                      breaks = ref_cell_order) +
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  guides(colour = guide_legend(override.aes = list(size=10), title="True label")) +
+  ggtitle(paste0("scMINER activity")) + 
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_scMINER_global_network_activity", "_true_label_no_legend", ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_scMINER_global_network_activity", "_true_label_no_legend", ".pdf"))
+pdf(save_file, height=10, width=10)
+p
+dev.off()
+```
+
+
+
+
+```{r, fig.width = 12, fig.height = 10}
+df = data.frame(UMAP1 = mica_act_scMINER_data$X, 
+                UMAP2 = mica_act_scMINER_data$Y, 
+                ac_clust = as.character(mica_act_scMINER_data$label))
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_act_scMINER_data$X) - min(mica_act_scMINER_data$X)
+x_min = min(mica_act_scMINER_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_act_scMINER_data$Y) - min(mica_act_scMINER_data$Y)
+y_min = min(mica_act_scMINER_data$Y) - 0.05*y_ampl
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = ac_clust)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  #theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  guides(colour = guide_legend(override.aes = list(size=10), title="Cluster")) +
+  ggtitle(paste0("scMINER activity")) + 
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_scMINER_global_network_activity", "_cluster", ".png"))
+png(save_file, height=10, width=12, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_scMINER_global_network_activity", "_cluster", ".pdf"))
+pdf(save_file, height=10, width=12)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width = 18, fig.height = 10}
+df = data.frame(UMAP1 = mica_act_SCENIC_data$X, 
+                UMAP2 = mica_act_SCENIC_data$Y, 
+                true_label = pData(eset_cpm)$true_label.refined)
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_act_SCENIC_data$X) - min(mica_act_SCENIC_data$X)
+x_min = min(mica_act_SCENIC_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_act_SCENIC_data$Y) - min(mica_act_SCENIC_data$Y)
+y_min = min(mica_act_SCENIC_data$Y) - 0.05*y_ampl
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = true_label)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  scale_colour_manual(values = c("Monocyte" = colors[1],
+                                 "B" = colors[2],
+                                 "NK" = colors[3],
+                                 "CD8TN" = colors[4],
+                                 "CD4TN" = colors[5],
+                                 "CD4Treg" = colors[6],
+                                 "CD4TCM" = colors[7]),
+                      breaks = ref_cell_order) +
+  #theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  guides(colour = guide_legend(override.aes = list(size=10), title="True label")) +
+  ggtitle("SCENIC activity") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_SCENIC_activity", "_true_label", ".png"))
+png(save_file, height=10, width=18, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_SCENIC_activity", "_true_label", ".pdf"))
+pdf(save_file, height=10, width=18)
+p
+dev.off()
+```
+
+
+```{r, fig.width = 10, fig.height = 10}
+df = data.frame(UMAP1 = mica_act_SCENIC_data$X, 
+                UMAP2 = mica_act_SCENIC_data$Y, 
+                true_label = pData(eset_cpm)$true_label.refined)
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_act_SCENIC_data$X) - min(mica_act_SCENIC_data$X)
+x_min = min(mica_act_SCENIC_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_act_SCENIC_data$Y) - min(mica_act_SCENIC_data$Y)
+y_min = min(mica_act_SCENIC_data$Y) - 0.05*y_ampl
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = true_label)) + geom_point(size = 1) + 
+  scale_colour_manual(values = c("Monocyte" = colors[1],
+                                 "B" = colors[2],
+                                 "NK" = colors[3],
+                                 "CD8TN" = colors[4],
+                                 "CD4TN" = colors[5],
+                                 "CD4Treg" = colors[6],
+                                 "CD4TCM" = colors[7]),
+                      breaks = ref_cell_order) +
+  theme_void(base_size = 30) + 
+  theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  guides(colour = guide_legend(override.aes = list(size=10), title="True label")) +
+  ggtitle("SCENIC activity") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_SCENIC_activity", "_true_label_no_legend", ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_SCENIC_activity", "_true_label_no_legend", ".pdf"))
+pdf(save_file, height=10, width=10)
+p
+dev.off()
+```
+
+
+
+```{r, fig.width = 12, fig.height = 10}
+df = data.frame(UMAP1 = mica_act_SCENIC_data$X, 
+                UMAP2 = mica_act_SCENIC_data$Y, 
+                ac_clust = as.character(mica_act_SCENIC_data$label))
+
+axis <- ggh4x::guide_axis_truncated(
+  trunc_lower = unit(0, "npc"),
+  trunc_upper = unit(5, "cm"))
+
+x_ampl = max(mica_act_SCENIC_data$X) - min(mica_act_SCENIC_data$X)
+x_min = min(mica_act_SCENIC_data$X) - 0.05*x_ampl
+
+y_ampl = max(mica_act_SCENIC_data$Y) - min(mica_act_SCENIC_data$Y)
+y_min = min(mica_act_SCENIC_data$Y) - 0.05*y_ampl
+
+
+getPalette = colorRampPalette(brewer.pal(7, "Set2"))
+p <- ggplot(df, aes(x = UMAP1, y = UMAP2, color = ac_clust)) + geom_point(size = 1) + 
+  theme_void(base_size = 30) + 
+  #theme(legend.position="none") +
+  xlab("UMAP 1") + ylab("UMAP 2") +
+  guides(colour = guide_legend(override.aes = list(size=10), title="Cluster")) +
+  ggtitle("SCENIC activity") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min + 0.18*x_ampl, yend = y_min), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") +
+  geom_segment(aes(x = x_min, y = y_min, 
+                   xend = x_min, yend = y_min + 0.18*y_ampl), 
+               arrow = arrow(length=unit(.5, 'cm'), type = "closed"), colour = "black") + 
+  annotate("text", x = x_min, y = y_min - 0.01*y_ampl, hjust = 0, vjust = 1, label = "UMAP1", color = "black", size = 8) + 
+  annotate("text", x = x_min - 0.01*x_ampl, y = y_min, hjust = 0, vjust = 0, label = "UMAP2", color = "black", size = 8, angle = 90) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.margin = unit(c(0, 0, 0.5, 0.5), "inches"),
+        aspect.ratio = 1)
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("UMAP_SCENIC_activity", "_cluster", ".png"))
+png(save_file, height=10, width=12, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("UMAP_SCENIC_activity", "_cluster", ".pdf"))
+pdf(save_file, height=10, width=12)
+p
+dev.off()
+```
+
+
+
+
+```{r}
+c1 = pData(eset_cpm)$true_label
+c2 = as.character(mica_act_scMINER_data$label)
+scMINER_ARI = ARI(c1, c2)
+
+c1 = pData(eset_cpm)$true_label
+c2 = as.character(mica_act_SCENIC_data$label)
+scenic_ARI = ARI(c1, c2)
+
+c(scMINER_ARI, scenic_ARI)
+```
+
+
+
+```{r, fig.width=8, fig.height=10}
+df = data.frame(method = c("scMINER", "SCENIC"),
+                ARI = c(scMINER_ARI, scenic_ARI))
+
+p <- ggplot(data = df, aes(x = method, y = ARI, fill = method)) + geom_bar(stat="identity") + 
+  theme_classic(base_size = 40) + xlab("") + ylab("ARI") + theme(legend.position="none") + 
+  scale_fill_manual(values=c("blue","red")) + ylim(0, 1) + 
+  annotate("text", x = 1, y = scenic_ARI + 0.05, hjust = 0.5, label = round(scenic_ARI, digits = 2), color = "black", size = 16) + 
+  annotate("text", x = 2, y = scMINER_ARI + 0.05, hjust = 0.5, label = round(scMINER_ARI, digits = 2), color = "black", size = 16)
+p
+```
+
+```{r}
+save_file = file.path(save_fold, paste0("ARI_scMINER_SCENIC", ".png"))
+png(save_file, height=10, width=8, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("ARI_scMINER_SCENIC", ".pdf"))
+pdf(save_file, height=10, width=8)
+p
+dev.off()
+```
+
+
+```{r}
+tl = pData(eset_cpm)$true_label
+
+cell_types = unique(pData(eset_cpm)$true_label)
+expr_cl = as.character(mica_expr_data$label)
+tl2cl = sapply(cell_types, function(cell_type) names(sort(table(expr_cl[tl == cell_type]), decreasing = TRUE))[1])
+cl2tl = names(tl2cl)
+names(cl2tl) = unname(tl2cl)
+expr_annot = unname(cl2tl[expr_cl])
+
+act_cl = as.character(mica_act_scMINER_data$label)
+tl2cl = sapply(cell_types, function(cell_type) names(sort(table(act_cl[tl == cell_type]), decreasing = TRUE))[1])
+cl2tl = names(tl2cl)
+names(cl2tl) = unname(tl2cl)
+act_annot = unname(cl2tl[act_cl])
+
+df = data.frame(cell_id = cell_ids,
+                true_label = pData(eset_cpm)$true_label,
+                expr_cl = as.character(mica_expr_data$label),
+                expr_annot = expr_annot,
+                act_cl = as.character(mica_act_scMINER_data$label),
+                act_annot = act_annot)
+rownames(df) = cell_ids
+
+cell_type = "CD4+/CD25 T Reg"
+
+tl_ids = df$cell_id[df$true_label == cell_type]
+exp_ids = df$cell_id[df$expr_annot == cell_type]
+act_ids = df$cell_id[df$act_annot == cell_type]
+```
+
+
+```{r, fig.width = 10, fig.height = 10}
+library(ggVennDiagram)
+x <- list("Activity" = act_ids,
+          "Expression" = exp_ids,
+          "True label" = tl_ids)
+
+p <- ggVennDiagram(x, set_size = 10, label_size = 10) + 
+  scale_fill_gradient(low="gray", high = "red") + 
+  scale_x_continuous(expand = expansion(mult = 0.1)) +
+  theme(legend.position="none") + 
+  #ggtitle(cell_type) + 
+  ggtitle("CD4Treg") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 40))
+
+p
+```
+
+
+```{r}
+save_file = file.path(save_fold, paste0("venn_diagram_Treg", ".png"))
+png(save_file, height=10, width=10, units="in", res=200)
+p
+dev.off()
+
+save_file = file.path(save_fold, paste0("venn_diagram_Treg", ".pdf"))
+pdf(save_file, height=10, width=10)
+p
+dev.off()
+```
+
+```{r}
+#rownames(eset_tf_ac)[grepl(x = rownames(eset_tf_ac), pattern = "X")]
+#mk_tf_list = c("CEBPA", "CEBPB", "SPI1", "TBX21", "PRDM1", "IRF8", "SATB1", "TCF7", "LEF1", "EOMES", "FOXP3", "GATA3", "KLF2", "NFATC3") 
+mk_tf_list = c("CEBPA", "CEBPB", "SPI1", "IRF8", "TBX21", "PRDM1", "EOMES",  "LEF1", "TCF7", "SATB1", "FOXP3", "GATA3",  "KLF2", "NFATC3") 
+#mk_sig_list = c("CD14", "S100A8", "S100A9", "S100A12", "NCAM1", "KLRD1", "KLRB1", "IL2RB", "PRF1", "GZMB", "CD69", "CD19", "CD22", "CD79A", "CD79B", "MS4A1", "FHIT", "LEF1", "CCR7", "CD8A", "CD8B", "S100B", "SELL", "TIGIT", "CTLA4", "CXCR3", "CD74", "IL7R")
+mk_sig_list = c("CD14", "S100A8", "S100A9", "S100A12",  "CD19", "CD22", "CD79A", "CD79B", "MS4A1", "NCAM1", "KLRD1", "KLRB1", "IL2RB", "PRF1", "GZMB", "CD69",  "CD8A", "CD8B", "S100B", "SELL", "CD4",  "FHIT", "CCR7",  "TIGIT", "CTLA4", "CXCR3", "CD74", "IL7R")
+```
+
+
+```{r}
+cell_types_ord_orig <- levels(as.factor(pData(eset_cpm)$true_label.refined))
+
+ids1 = pData(eset_cpm)$true_label.refined == ref_cell_order[1]
+ids2 = pData(eset_cpm)$true_label.refined == ref_cell_order[2]
+ids3 = pData(eset_cpm)$true_label.refined == ref_cell_order[3]
+ids4 = pData(eset_cpm)$true_label.refined == ref_cell_order[4]
+ids5 = pData(eset_cpm)$true_label.refined == ref_cell_order[5]
+ids6 = pData(eset_cpm)$true_label.refined == ref_cell_order[6]
+ids7 = pData(eset_cpm)$true_label.refined == ref_cell_order[7]
+
+true_label_ord = c(pData(eset_cpm)$true_label[ids1], pData(eset_cpm)$true_label[ids2], pData(eset_cpm)$true_label[ids3], pData(eset_cpm)$true_label[ids4], pData(eset_cpm)$true_label[ids5], pData(eset_cpm)$true_label[ids6], pData(eset_cpm)$true_label[ids7])
+cell_id_ord = c(pData(eset_cpm)$cell_id[ids1], pData(eset_cpm)$cell_id[ids2], pData(eset_cpm)$cell_id[ids3], pData(eset_cpm)$cell_id[ids4], pData(eset_cpm)$cell_id[ids5], pData(eset_cpm)$cell_id[ids6], pData(eset_cpm)$cell_id[ids7])
+exp_all_ord = as.matrix(exprs(eset_cpm)[,cell_id_ord])
+
+```
+
+
+```{r, fig.width=5, fig.height=4}
+genes <- intersect(mk_tf_list, fData(eset_cpm)[, "gene_name"])
+ids <- match(genes, fData(eset_cpm)[, "gene_name"])
+exp <- exp_all_ord[ids, ]
+row_mean <- rowMeans(exp)
+row_stdev <- apply(exp, 1, sd, na.rm=TRUE)
+exp <- (exp - row_mean)/row_stdev
+rownames(exp) <- genes
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   #show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type", 
+                                                                                   labels = ref_cell_order)))
+min_col_th = -3
+max_col_th = 3
+colors = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red"))
+
+col_th = max(c(max(exp), abs(min(exp))))
+hmp <- Heatmap(exp, col = colors, name = "expression", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               #show_heatmap_legend = FALSE,
+               column_title = "Expression TF markers",
+               heatmap_legend_param = list(title = "Expression"))
+hmp
+```
+
+```{r}
+save_file = file.path(save_fold, "heatmap_expression_tf_markers.png")
+png(save_file, height=4, width=5, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_expression_tf_markers.pdf")
+pdf(save_file, height=4, width=5)
+print(hmp)
+dev.off()
+```
+
+```{r, fig.width=3, fig.height=4}
+genes <- intersect(mk_tf_list, fData(eset_cpm)[, "gene_name"])
+ids <- match(genes, fData(eset_cpm)[, "gene_name"])
+exp <- exp_all_ord[ids, ]
+row_mean <- rowMeans(exp)
+row_stdev <- apply(exp, 1, sd, na.rm=TRUE)
+exp <- (exp - row_mean)/row_stdev
+rownames(exp) <- genes
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type", 
+                                                                                   labels = ref_cell_order)))
+min_col_th = -3
+max_col_th = 3
+colors = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red"))
+
+col_th = max(c(max(exp), abs(min(exp))))
+hmp <- Heatmap(exp, col = colors, name = "expression", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               show_heatmap_legend = FALSE,
+               column_title = "Expression TF markers",
+               heatmap_legend_param = list(title = "Expression"),
+               row_names_side = "left")
+hmp
+```
+
+```{r}
+save_file = file.path(save_fold, "heatmap_expression_tf_markers_no_legend.png")
+png(save_file, height=4, width=3.2, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_expression_tf_markers_no_legend.pdf")
+pdf(save_file, height=4, width=3.2)
+print(hmp)
+dev.off()
+```
+
+
+
+
+
+```{r, fig.width=7, fig.height=7}
+genes <- intersect(mk_sig_list, fData(eset_cpm)[, "gene_name"])
+ids <- match(genes, fData(eset_cpm)[, "gene_name"])
+exp <- exp_all_ord[ids, ]
+row_mean <- rowMeans(exp)
+row_stdev <- apply(exp, 1, sd, na.rm=TRUE)
+exp <- (exp - row_mean)/row_stdev
+rownames(exp) <- genes
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   #show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type", 
+                                                                                   labels = ref_cell_order)))
+min_col_th = -3
+max_col_th = 3
+colors = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red"))
+
+col_th = max(c(max(exp), abs(min(exp))))
+hmp <- Heatmap(exp, col = colors, name = "expression", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               #show_heatmap_legend = FALSE,
+               column_title = "Expression SIG markers",
+               heatmap_legend_param = list(title = "Expression"))
+hmp
+```
+
+```{r}
+save_file = file.path(save_fold, "heatmap_expression_sig_markers.png")
+png(save_file, height=7, width=7, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_expression_sig_markers.pdf")
+pdf(save_file, height=7, width=7)
+print(hmp)
+dev.off()
+```
+
+```{r, fig.width=5.8, fig.height=7}
+genes <- intersect(mk_sig_list, fData(eset_cpm)[, "gene_name"])
+ids <- match(genes, fData(eset_cpm)[, "gene_name"])
+exp <- exp_all_ord[ids, ]
+row_mean <- rowMeans(exp)
+row_stdev <- apply(exp, 1, sd, na.rm=TRUE)
+exp <- (exp - row_mean)/row_stdev
+rownames(exp) <- genes
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type", 
+                                                                                   labels = ref_cell_order)))
+min_col_th = -3
+max_col_th = 3
+colors = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red"))
+
+col_th = max(c(max(exp), abs(min(exp))))
+hmp <- Heatmap(exp, col = colors, name = "expression", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               show_heatmap_legend = FALSE,
+               column_title = "Expression SIG markers",
+               heatmap_legend_param = list(title = "Expression"),
+               row_names_side = "left")
+hmp
+```
+
+```{r}
+save_file = file.path(save_fold, "heatmap_expression_sig_markers_no_legend.png")
+png(save_file, height=7, width=5.8, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_expression_sig_markers_no_legend.pdf")
+pdf(save_file, height=7, width=5.8)
+print(hmp)
+dev.off()
+```
+
+
+
+
+
+```{r, fig.width=5, fig.height=4}
+ids <- match(mk_tf_list, fData(eset_tf_ac_sing)[, "geneSymbol"])
+exp <- ac_tf_sing_row_norm[ids, cell_id_ord]
+rownames(exp) <- mk_tf_list
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+min_col_th = -3
+max_col_th = 3
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type",
+                                                                                   labels = ref_cell_order)))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity scMINER TF markers"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_tf_markers.png")
+png(save_file, height=4, width=5, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_tf_markers.pdf")
+pdf(save_file, height=4, width=5)
+print(hmp)
+dev.off()
+```
+
+
+```{r, fig.width=2.5, fig.height=4}
+ids <- match(mk_tf_list, fData(eset_tf_ac_sing)[, "geneSymbol"])
+exp <- ac_tf_sing_row_norm[ids, cell_id_ord]
+rownames(exp) <- mk_tf_list
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+min_col_th = -3
+max_col_th = 3
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type",
+                                                                                   labels = ref_cell_order)))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_heatmap_legend = FALSE,
+               show_row_names = FALSE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity scMINER TF markers"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_tf_markers_no_legend.png")
+png(save_file, height=4, width=2.5, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_tf_markers_no_legend.pdf")
+pdf(save_file, height=4, width=2.5)
+print(hmp)
+dev.off()
+```
+
+
+
+
+```{r, fig.width=7, fig.height=7}
+ids <- match(mk_sig_list, fData(eset_sig_ac_sing)[, "geneSymbol"])
+exp <- ac_sig_sing_row_norm[ids, cell_id_ord]
+rownames(exp) <- mk_sig_list
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+min_col_th = -3
+max_col_th = 3
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type",
+                                                                                   labels = ref_cell_order)))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity scMINER SIG markers"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_sig_markers.png")
+png(save_file, height=7, width=7, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_sig_markers.pdf")
+pdf(save_file, height=7, width=7)
+print(hmp)
+dev.off()
+```
+
+
+```{r, fig.width=5, fig.height=7}
+ids <- match(mk_sig_list, fData(eset_sig_ac_sing)[, "geneSymbol"])
+exp <- ac_sig_sing_row_norm[ids, cell_id_ord]
+rownames(exp) <- mk_sig_list
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+min_col_th = -3
+max_col_th = 3
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type",
+                                                                                   labels = ref_cell_order)))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_heatmap_legend = FALSE,
+               show_row_names = FALSE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity scMINER SIG markers"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_sig_markers_no_legend.png")
+png(save_file, height=7, width=5, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_scMIENR_sig_markers_no_legend.pdf")
+pdf(save_file, height=7, width=5)
+print(hmp)
+dev.off()
+```
+
+
+
+```{r, fig.width=5, fig.height=4}
+#score_df = as.data.frame(exprs(eset_scenic_auc))[mk_tf_list,cell_id_ord]
+ids = match(mk_tf_list, rownames(eset_scenic_auc))
+score_df = as.data.frame(exprs(eset_scenic_auc))[ids,cell_id_ord]
+rownames(score_df) <- mk_tf_list
+exp <- as.matrix(score_df)
+row_mean <- rowMeans(exp)
+row_stdev <- apply(exp, 1, sd, na.rm=TRUE)
+exp <- (exp - row_mean)/row_stdev
+
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+min_col_th = -3
+max_col_th = 3
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type",
+                                                                                   labels = ref_cell_order)))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_row_names = TRUE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity SCEINC TF markers"))
+
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_tf_markers_SCENIC.png")
+png(save_file, height=4, width=5, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_tf_markers_SCENIC.pdf")
+pdf(save_file, height=4, width=5)
+print(hmp)
+dev.off()
+```
+
+
+
+```{r, fig.width=2.5, fig.height=4}
+#score_df = as.data.frame(exprs(eset_scenic_auc))[mk_tf_list,cell_id_ord]
+ids = match(mk_tf_list, rownames(eset_scenic_auc))
+score_df = as.data.frame(exprs(eset_scenic_auc))[ids,cell_id_ord]
+rownames(score_df) <- mk_tf_list
+exp <- as.matrix(score_df)
+row_mean <- rowMeans(exp)
+row_stdev <- apply(exp, 1, sd, na.rm=TRUE)
+exp <- (exp - row_mean)/row_stdev
+
+df <- data.frame("cell_type" = factor(true_label_ord, levels = unique(true_label_ord)))
+n <- length(unique(true_label_ord))
+ncols <- (scales::hue_pal())(n)
+names(ncols) <- unique(true_label_ord)
+min_col_th = -3
+max_col_th = 3
+
+col_annotation = HeatmapAnnotation(df = df, 
+                                   col = list("cell_type" = ncols), 
+                                   show_annotation_name = FALSE,
+                                   show_legend = FALSE,
+                                   annotation_legend_param = list(cell_type = list(title = "Cell type",
+                                                                                   labels = ref_cell_order)))
+hmp <- Heatmap(exp, col = circlize::colorRamp2(c(min_col_th, 0, max_col_th), c("blue", "gray95", "red")), 
+               heatmap_legend_param = list(color_bar = "continuous", title = "Activity"),
+               name = "activity", 
+               show_heatmap_legend = FALSE,
+               show_row_names = FALSE, show_column_names = FALSE, cluster_rows = FALSE, 
+               cluster_columns = FALSE, top_annotation = col_annotation,
+               column_title = paste0("Acivity SCENIC TF markers"))
+hmp
+```
+
+
+```{r}
+save_file = file.path(save_fold, "heatmap_activity_tf_markers_SCENIC_no_legend.png")
+png(save_file, height=4, width=2.5, units="in", res=200)
+print(hmp)
+dev.off()
+
+save_file = file.path(save_fold, "heatmap_activity_tf_markers_SCENIC_no_legend.pdf")
+pdf(save_file, height=4, width=2.5)
+print(hmp)
+dev.off()
+```
+
+```{r}
+swap_labels <- function(labs, l1, l2){
+  labs[labs == l1] = "x"
+  labs[labs == l2] = l1
+  labs[labs == "x"] = l2
+  return(labs)
+}
+```
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+library(ggsankey)
+
+ref_cell_order = c("Monocyte", "B", "NK", "CD8TN", "CD4TN", "CD4Treg", "CD4TCM")
+
+true_labs = pData(eset_cpm)$true_label.refined
+
+SCENIC_labs = as.character(mica_act_SCENIC_data$label)
+SCENIC_labs <- swap_labels(SCENIC_labs, "3", "7")
+SCENIC_labs <- swap_labels(SCENIC_labs, "4", "1")
+SCENIC_labs <- swap_labels(SCENIC_labs, "2", "5")
+SCENIC_labs <- swap_labels(SCENIC_labs, "3", "4")
+
+
+scMINER_labs = as.character(7 + mica_act_scMINER_data$label)
+scMINER_labs <- swap_labels(scMINER_labs, "11", "9")
+scMINER_labs <- swap_labels(scMINER_labs, "13", "8")
+scMINER_labs <- swap_labels(scMINER_labs, "14", "11")
+scMINER_labs <- swap_labels(scMINER_labs, "13", "11")
+scMINER_labs <- swap_labels(scMINER_labs, "12", "11")
+scMINER_labs <- swap_labels(scMINER_labs, "10", "11")
+                           
+df_labels = data.frame("Cell" = true_labs,
+                "SCENIC" = SCENIC_labs,
+                "scMINER" = scMINER_labs)
+
+
+df <- df_labels %>%
+  make_long("SCENIC", "Cell", "scMINER")
+df$node = as.factor(df$node)
+
+
+#levels(df$node) = c("1", "10", "11", "12", "13", "14", "2", "3", "4", "5", "6", "7", "8", "9", 
+#  "CD4TCM", "CD4Treg", "CD4TN", "CD8TN", "NK", "B", "Monocyte")
+
+
+colors = (scales::hue_pal())(7)
+
+p <- ggplot(df, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node,
+               fill = factor(node),
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5) +
+  theme_sankey(base_size = 20) + 
+  geom_sankey_label(size = 5, hjust = 0.5, fill = "white") +
+  theme(legend.position="none") + xlab("") +
+  ggtitle("Activity-based clustering") + theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("6" = colors[1], "Monocyte" = colors[1], "8" = colors[1],
+                               "1" = colors[2], "B" = colors[2], "10" = colors[2],
+                               "7" = colors[3], "NK" = colors[3], "9" = colors[3],
+                               "5" = colors[4], "CD8TN" = colors[4], "14" = colors[4],
+                               "3" = colors[5], "CD4TN" = colors[5], "12" = colors[5],
+                               "4" = colors[6], "CD4Treg" = colors[6], "13" = colors[6],
+                               "2" = colors[7], "CD4TCM" = colors[7], "11" = colors[7]))
+print(p)
+```
+
+
+
+
+```{r}
+save_file = file.path(save_fold, "sankey_plot.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(p)
+dev.off()
+
+save_file = file.path(save_fold, "sankey_plot.pdf")
+pdf(save_file, height=6, width=6)
+print(p)
+dev.off()
+```
+
+
+
+```{r, fig.width = 6, fig.height = 6}
+
+true_labs = pData(eset_cpm)$true_label.refined
+
+SCENIC_labs = as.character(mica_act_SCENIC_data$label)
+SCENIC_labs <- swap_labels(SCENIC_labs, "3", "7")
+SCENIC_labs <- swap_labels(SCENIC_labs, "4", "1")
+SCENIC_labs <- swap_labels(SCENIC_labs, "2", "5")
+SCENIC_labs <- swap_labels(SCENIC_labs, "3", "4")
+
+scMINER_labs = as.character(mica_act_scMINER_data$label)
+scMINER_labs <- swap_labels(scMINER_labs, "5", "1")
+scMINER_labs <- swap_labels(scMINER_labs, "2", "3")
+scMINER_labs <- swap_labels(scMINER_labs, "5", "3")
+scMINER_labs <- swap_labels(scMINER_labs, "7", "4")
+
+df_labels = data.frame("SCENIC" = SCENIC_labs,
+                       "Cell" = true_labs,
+                       "scMINER" = scMINER_labs)
+sankey_data <- ggforce::gather_set_data(df_labels, 1:3)
+sankey_data$value <- 1
+  
+
+colors = (scales::hue_pal())(7)
+
+sankey_plot <- ggplot(sankey_data, aes(x, id = id, split = y, value = value)) +
+    geom_parallel_sets(aes(fill = Cell), alpha = 0.5, axis.width = 0.1) +
+    geom_parallel_sets_axes(aes(fill=y), axis.width = 0.1) +
+    geom_parallel_sets_labels(colour = 'black',angle = 0, size=5) + 
+    scale_fill_manual(values = c("6" = colors[1], "Monocyte" = colors[1], "6" = colors[1],
+                               "1" = colors[2], "B" = colors[2], "1" = colors[2],
+                               "7" = colors[3], "NK" = colors[3], "7" = colors[3],
+                               "5" = colors[4], "CD8TN" = colors[4], "5" = colors[4],
+                               "3" = colors[5], "CD4TN" = colors[5], "3" = colors[5],
+                               "4" = colors[6], "CD4Treg" = colors[6], "4" = colors[6],
+                               "2" = colors[7], "CD4TCM" = colors[7], "2" = colors[7])) +
+  theme_void(base_size = 16) + theme(legend.position="none") + #xlab("") +
+  ggtitle("Activity-based clustering") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_continuous(expand = expansion(mult = 0.1)) + 
+  scale_y_continuous(expand = expansion(mult = 0.1)) + 
+  annotate(geom = "text", x = 1, y = 0, vjust = 1.5, hjust = 0.5, label = "SCENIC", color = "black", size = 6) + 
+  annotate(geom = "text", x = 2, y = 0, vjust = 1.5, hjust = 0.5, label = "True label", color = "black", size = 6) + 
+  annotate(geom = "text", x = 3, y = 0, vjust = 1.5, hjust = 0.5, label = "scMINER", color = "black", size = 6)
+
+sankey_plot
+```
+
+```{r}
+save_file = file.path(save_fold, "sankey_plot_upd.png")
+png(save_file, height=6, width=6, units="in", res=200)
+print(sankey_plot)
+dev.off()
+
+save_file = file.path(save_fold, "sankey_plot_upd.pdf")
+pdf(save_file, height=6, width=6)
+print(sankey_plot)
+dev.off()
+```
+
+
+
